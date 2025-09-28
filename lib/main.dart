@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -182,7 +183,7 @@ class MainApp extends StatefulWidget {
   State<MainApp> createState() => _MainAppState();
 }
 
-class _MainAppState extends State<MainApp> {
+class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   int dimension = 3;
   late PuzzleBoard board;
   ui.Image? image; // تصویر انتخاب‌شده
@@ -193,6 +194,12 @@ class _MainAppState extends State<MainApp> {
   int moves = 0;
   bool showNumbers = false;
   bool darkMode = false; // fastMode حذف شد
+  bool colorBlindMode = false; // حالت رنگ مناسب برای افراد کوررنگ
+  bool _justSolved = false;
+  late AnimationController _bgAnim;
+  late AnimationController _solveParticles;
+  late AnimationController _cartoon;
+  final ValueNotifier<int> _pulseNotifier = ValueNotifier(0);
 
   // رکوردها
   int? bestMoves;
@@ -200,7 +207,7 @@ class _MainAppState extends State<MainApp> {
   // رنگ‌های ثابت (حذف سیستم پالت)
   // گرادیان روشن و درخشان که در هر دو مود زیبا باشد.
   // اگر کاربر مود تیره را بزند، یک لایه تیره شفاف روی آن اعمال می‌کنیم.
-  static const Color _accentColor = Color(0xFF00BFA5); // فیروزه‌ای آرام
+  // static const Color _accentColor = Color(0xFF00BFA5); // حذف: دیگر استفاده نمی‌شود
 
   // کش برش‌ها
   List<ui.Image?>? _slices; // طول = tiles.length -1
@@ -211,6 +218,28 @@ class _MainAppState extends State<MainApp> {
     super.initState();
     board = PuzzleBoard.solved(dimension).shuffled(rng);
     _loadRecords();
+    _bgAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 18),
+    )..repeat();
+    _solveParticles = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+    _cartoon = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _bgAnim.dispose();
+    _solveParticles.dispose();
+    _cartoon.dispose();
+    _pulseNotifier.dispose();
+    super.dispose();
   }
 
   void _startTimer() {
@@ -249,6 +278,7 @@ class _MainAppState extends State<MainApp> {
   // progress bar حذف شد
 
   void _toggleDark() => setState(() => darkMode = !darkMode);
+  void _toggleColorBlind() => setState(() => colorBlindMode = !colorBlindMode);
   // حالت سریع حذف شد
 
   Future<void> _buildSlices() async {
@@ -314,6 +344,7 @@ class _MainAppState extends State<MainApp> {
   }
 
   void _reset({bool shuffle = false}) {
+    _justSolved = false;
     board = PuzzleBoard.solved(dimension);
     if (shuffle) {
       board = board.shuffled(rng);
@@ -337,31 +368,29 @@ class _MainAppState extends State<MainApp> {
     final moved = board.move(tileArrayIndex);
     if (moved) {
       moves++;
+      _pulseNotifier.value++;
       setState(() {});
       if (board.isSolved) {
         _timer?.cancel();
-        Future.delayed(const Duration(milliseconds: 300), () {
+        _saveRecordIfBetter();
+        _justSolved = true;
+        _solveParticles.forward(from: 0);
+        HapticFeedback.mediumImpact();
+        Future.delayed(const Duration(milliseconds: 600), () {
           if (!mounted) return;
           showDialog(
+            barrierDismissible: false,
             context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('تبریک!'),
-              content: Text(
-                'پازل را در ${_toFaDigits(moves)} حرکت و ${_formatTime(seconds)} حل کردید.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _reset(shuffle: true);
-                  },
-                  child: const Text('دوباره'),
-                ),
-              ],
+            builder: (_) => _WinDialog(
+              moves: moves,
+              time: _formatTime(seconds),
+              onReplay: () {
+                Navigator.pop(context);
+                _reset(shuffle: true);
+              },
             ),
           );
         });
-        _saveRecordIfBetter();
       }
     }
   }
@@ -380,7 +409,7 @@ class _MainAppState extends State<MainApp> {
       brightness: darkMode ? Brightness.dark : Brightness.light,
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: _accentColor,
+        seedColor: const Color(0xFFFF6EC7),
         brightness: darkMode ? Brightness.dark : Brightness.light,
       ),
       textTheme: GoogleFonts.vazirmatnTextTheme(
@@ -394,136 +423,140 @@ class _MainAppState extends State<MainApp> {
       home: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
+          extendBody: true,
           extendBodyBehindAppBar: true,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            title: Text(
-              'پازل اسلایدی',
-              style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w600),
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(72),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18.0,
+                  vertical: 6,
+                ),
+                child: Center(child: _GradientTitle(text: 'پازل اسلایدی 🧩')),
+              ),
             ),
-            actions: [
-              IconButton(
-                tooltip: darkMode ? 'حالت روشن' : 'حالت تیره',
-                onPressed: _toggleDark,
-                icon: Icon(darkMode ? Icons.light_mode : Icons.dark_mode),
-              ),
-              IconButton(
-                tooltip: 'انتخاب تصویر',
-                icon: const Icon(Icons.image_outlined),
-                onPressed: _pickImage,
-              ),
-              IconButton(
-                tooltip: 'شافل نامرتب‌ها',
-                icon: const Icon(Icons.auto_fix_high),
-                onPressed: () =>
-                    setState(() => board.partialShuffleIncorrect(rng)),
-              ),
-              PopupMenuButton<int>(
-                tooltip: 'ابعاد',
-                onSelected: _changeDimension,
-                itemBuilder: (_) => [3, 4, 5]
-                    .map(
-                      (e) => PopupMenuItem(
-                        value: e,
-                        child: Text(_toFaDigits('${e}×$e')),
-                      ),
-                    )
-                    .toList(),
-                icon: const Icon(Icons.grid_on),
-              ),
-              IconButton(
-                tooltip: showNumbers ? 'مخفی کردن شماره' : 'نمایش شماره',
-                onPressed: () => setState(() => showNumbers = !showNumbers),
-                icon: Icon(showNumbers ? Icons.filter_9_plus : Icons.numbers),
-              ),
-              IconButton(
-                tooltip: 'شروع دوباره',
-                icon: const Icon(Icons.refresh),
-                onPressed: () => _reset(shuffle: true),
-              ),
-            ],
           ),
-          body: Container(
-            color: darkMode ? const Color(0xFF121212) : Colors.white,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final maxBoard = min(
-                  constraints.maxWidth,
-                  constraints.maxHeight - 220,
-                ).clamp(240.0, 640.0);
-                return Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 110, 20, 32),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 820),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _TopStats(
-                            moves: moves,
-                            time: _formatTime(seconds),
-                            dim: dimension,
-                            bestMoves: bestMoves,
-                            bestTime: bestTime,
-                          ),
-                          const SizedBox(height: 12),
-                          _BoardFrame(
-                            dark: darkMode,
-                            child: SizedBox(
-                              width: maxBoard,
-                              height: maxBoard,
-                              child: _PuzzleView(
-                                board: board,
-                                dimension: dimension,
-                                image: image,
-                                showNumbers: showNumbers,
-                                onTileTap: _onTileTap,
-                                slices: _slices,
+          body: Stack(
+            children: [
+              AnimatedBackground(controller: _bgAnim, dark: darkMode),
+              if (darkMode) Container(color: Colors.black.withOpacity(0.25)),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final maxBoard = min(
+                    constraints.maxWidth,
+                    constraints.maxHeight - 260,
+                  ).clamp(240.0, 560.0);
+                  return Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 110, 20, 120),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 860),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _TopStats(
+                              moves: moves,
+                              time: _formatTime(seconds),
+                              dim: dimension,
+                              bestMoves: bestMoves,
+                              bestTime: bestTime,
+                            ),
+                            const SizedBox(height: 16),
+                            Hero(
+                              tag: 'board',
+                              child: _FancyFrame(
+                                child: SizedBox(
+                                  width: maxBoard,
+                                  height: maxBoard,
+                                  child: _PuzzleView(
+                                    board: board,
+                                    dimension: dimension,
+                                    image: image,
+                                    showNumbers: showNumbers,
+                                    onTileTap: _onTileTap,
+                                    slices: _slices,
+                                    cartoon: _cartoon,
+                                    colorBlindMode: colorBlindMode,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 28),
-                          if (image == null)
-                            Text(
-                              'برای شروع یک تصویر انتخاب کنید.',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: darkMode
-                                        ? Colors.white70
-                                        : Colors.black54,
-                                  ),
-                              textAlign: TextAlign.center,
-                            ),
-                          if (_buildingCache)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 16.0),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+                            const SizedBox(height: 30),
+                            if (image == null)
+                              Text(
+                                '📸 یک تصویر انتخاب کن تا شروع کنیم! یا با همین رنگ‌ها بازی کن.',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: Colors.white.withOpacity(0.85),
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'در حال آماده‌سازی تصویر...',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  ),
-                                ],
+                                textAlign: TextAlign.center,
                               ),
-                            ),
-                        ],
+                            if (_buildingCache)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16.0),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'در حال آماده‌سازی تصویر...',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // دکمه‌های کنترل پایین
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _ActionBar(
+                  onPickImage: _pickImage,
+                  onShuffleIncorrect: () =>
+                      setState(() => board.partialShuffleIncorrect(rng)),
+                  onToggleNumbers: () =>
+                      setState(() => showNumbers = !showNumbers),
+                  onReset: () => _reset(shuffle: true),
+                  onChangeDim: _changeDimension,
+                  dimension: dimension,
+                  showNumbers: showNumbers,
+                  darkMode: darkMode,
+                  onToggleDark: _toggleDark,
+                  onToggleColorBlind: _toggleColorBlind,
+                  colorBlindMode: colorBlindMode,
+                ),
+              ),
+              // افکت حل شدن
+              if (_justSolved)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: ParticleBurstPainter(
+                        progress: _solveParticles.value,
+                        seed: moves,
                       ),
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+            ],
           ),
         ),
       ),
@@ -548,13 +581,13 @@ class _TopStats extends StatelessWidget {
   Widget build(BuildContext context) {
     return Wrap(
       alignment: WrapAlignment.center,
-      spacing: 14,
-      runSpacing: 10,
+      spacing: 16,
+      runSpacing: 12,
       children: [
-        _chip(context, Icons.timer_outlined, time, 'زمان'),
-        _chip(context, Icons.swipe, _toFaDigits(moves), 'حرکت'),
-        _chip(context, Icons.grid_4x4, _toFaDigits('${dim}×$dim'), 'ابعاد'),
-        _chip(context, Icons.emoji_events_outlined, _recordText(), 'رکورد'),
+        _chip(context, '⏱️', time, 'زمان'),
+        _chip(context, '🎯', _toFaDigits(moves), 'حرکت'),
+        _chip(context, '🧩', _toFaDigits('${dim}×$dim'), 'ابعاد'),
+        _chip(context, '🏆', _recordText(), 'رکورد'),
       ],
     );
   }
@@ -566,26 +599,53 @@ class _TopStats extends StatelessWidget {
     return '$bm / $bt';
   }
 
-  Widget _chip(BuildContext ctx, IconData icon, String value, String label) {
+  Widget _chip(BuildContext ctx, String emoji, String value, String label) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutBack,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       decoration: BoxDecoration(
-        color: Theme.of(ctx).colorScheme.surface.withOpacity(0.25),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white24, width: 1),
+        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFF176), Color(0xFFFFC038), Color(0xFFFF914D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.4),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFC038).withOpacity(0.55),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18),
-          const SizedBox(width: 6),
+          Text(emoji, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 8),
           Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(label, style: const TextStyle(fontSize: 11)),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  color: Colors.black87,
+                ),
+              ),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.1,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black54,
+                ),
+              ),
             ],
           ),
         ],
@@ -594,19 +654,34 @@ class _TopStats extends StatelessWidget {
   }
 }
 
-class _BoardFrame extends StatelessWidget {
+class _FancyFrame extends StatelessWidget {
   final Widget child;
-  final bool dark;
-  const _BoardFrame({required this.child, required this.dark});
+  const _FancyFrame({required this.child});
   @override
   Widget build(BuildContext context) {
-    final color = Colors.white.withOpacity(dark ? 0.06 : 0.10);
-    return Container(
-      padding: const EdgeInsets.all(18),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeOutCubic,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        color: color,
-        border: Border.all(color: Colors.black12, width: 1),
+        borderRadius: BorderRadius.circular(40),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.22),
+            Colors.white.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: Colors.white.withOpacity(0.35), width: 1.4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 25,
+            offset: const Offset(0, 12),
+          ),
+        ],
+        backgroundBlendMode: BlendMode.overlay,
       ),
       child: child,
     );
@@ -620,6 +695,8 @@ class _PuzzleView extends StatelessWidget {
   final bool showNumbers;
   final void Function(int tileArrayIndex) onTileTap;
   final List<ui.Image?>? slices;
+  final AnimationController cartoon;
+  final bool colorBlindMode;
   // fastMode حذف شد
   const _PuzzleView({
     required this.board,
@@ -628,6 +705,8 @@ class _PuzzleView extends StatelessWidget {
     required this.showNumbers,
     required this.onTileTap,
     required this.slices,
+    required this.cartoon,
+    required this.colorBlindMode,
   });
 
   @override
@@ -678,14 +757,15 @@ class _PuzzleView extends StatelessWidget {
     final correctPos = tile.correctIndex;
     final correctRow = correctPos ~/ dimension;
     final correctCol = correctPos % dimension;
+    // حذف افکت کج و حرکت عمودی – بازگشت به حالت ثابت
     return AnimatedPositioned(
-      duration: const Duration(milliseconds: 160),
-      curve: Curves.easeInOut,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOutCubic,
       left: col * tileSize,
       top: row * tileSize,
       width: tileSize,
       height: tileSize,
-      child: GestureDetector(
+      child: _AnimatedTapScale(
         onTap: () => onTileTap(board.tiles.indexOf(tile)),
         child: _TileContent(
           image: image,
@@ -699,6 +779,7 @@ class _PuzzleView extends StatelessWidget {
               slices != null && tile.correctIndex < (dimension * dimension - 1)
               ? slices![tile.correctIndex]
               : null,
+          colorBlindMode: colorBlindMode,
         ),
       ),
     );
@@ -714,6 +795,7 @@ class _TileContent extends StatelessWidget {
   final int index;
   final bool isCorrect;
   final ui.Image? slice;
+  final bool colorBlindMode;
   // fastMode حذف شد
   const _TileContent({
     required this.image,
@@ -724,46 +806,82 @@ class _TileContent extends StatelessWidget {
     required this.index,
     required this.isCorrect,
     required this.slice,
+    required this.colorBlindMode,
   });
 
   @override
   Widget build(BuildContext context) {
-    // رنگ پاستیلی شبه تصادفی بر اساس اندیس
-    Color pastel(int i, bool correct) {
-      final hue = (i * 53) % 360; // پخش یکنواخت
-      final hsl = HSLColor.fromAHSL(
-        1,
-        hue.toDouble(),
-        0.55,
-        correct ? 0.70 : 0.78,
-      );
-      return hsl.toColor();
-    }
+    // پالت پیش‌فرض پر انرژی کارتونی
+    const normalPalette = [
+      Color(0xFFFF5A5F), // Coral Red
+      Color(0xFFFFC038), // Warm Yellow
+      Color(0xFF58D66D), // Green
+      Color(0xFF34C3FF), // Sky Blue
+      Color(0xFF9B6BFF), // Purple
+      Color(0xFFFF78D5), // Pink
+      Color(0xFFFF914D), // Orange
+    ];
+    // پالت مناسب کوررنگی (Okabe-Ito) تا حد امکان متمایز و با کنتراست
+    const cbPalette = [
+      Color(0xFF0072B2), // Blue
+      Color(0xFFD55E00), // Vermillion
+      Color(0xFF009E73), // Green
+      Color(0xFFE69F00), // Orange
+      Color(0xFF56B4E9), // Sky Blue Light
+      Color(0xFFCC79A7), // Reddish purple
+      Color(0xFFF0E442), // Yellow
+    ];
+    final palette = colorBlindMode ? cbPalette : normalPalette;
+    final baseColor = palette[index % palette.length];
+    final correctGlow = isCorrect
+        ? [
+            BoxShadow(
+              color: Colors.white.withOpacity(0.9),
+              blurRadius: 18,
+              spreadRadius: 1,
+            ),
+            BoxShadow(
+              color: baseColor.withOpacity(0.9),
+              blurRadius: 38,
+              spreadRadius: -2,
+            ),
+          ]
+        : [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.25),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ];
 
-    final baseColor = pastel(index, isCorrect);
-    final child = Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutQuad,
       decoration: BoxDecoration(
         gradient: image == null
             ? LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  baseColor.withOpacity(0.95),
-                  baseColor.withOpacity(0.7),
-                ],
+                colors: [baseColor, baseColor.withOpacity(0.65)],
               )
             : null,
         color: image == null ? null : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black12, width: 1),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isCorrect
+              ? baseColor.withOpacity(0.9)
+              : Colors.white.withOpacity(0.45),
+          width: isCorrect ? 2.2 : 1.2,
+        ),
+        boxShadow: correctGlow,
       ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (image != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: slice != null
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (image != null)
+              (slice != null
                   ? FittedBox(
                       fit: BoxFit.cover,
                       child: RawImage(
@@ -778,32 +896,71 @@ class _TileContent extends StatelessWidget {
                         clipRow: correctRow,
                         clipCol: correctCol,
                       ),
-                    ),
-            ),
-          if (showNumber)
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Container(
-                margin: const EdgeInsets.all(4),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  _toFaDigits(index + 1),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    )),
+            // الگوی تمایز اضافی برای حالت کوررنگ (برای وقتی تصویر نیست)
+            if (colorBlindMode && image == null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _PatternPainter(patternIndex: index % 4),
                   ),
                 ),
               ),
-            ),
-        ],
+            if (showNumber)
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Container(
+                  margin: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (colorBlindMode ? Colors.black : Colors.black)
+                        .withOpacity(0.50),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _toFaDigits(index + 1),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black54,
+                          blurRadius: 4,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            if (isCorrect && image == null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    opacity: isCorrect ? 1 : 0,
+                    duration: const Duration(milliseconds: 500),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          colors: [
+                            Colors.white.withOpacity(0.35),
+                            Colors.transparent,
+                          ],
+                          radius: 0.85,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
-    return child;
   }
 }
 
@@ -848,6 +1005,515 @@ class _ImagePainter extends CustomPainter {
         oldDelegate.clipCol != clipCol;
   }
 }
+
+// الگوهای ساده برای تشخیص بیشتر در حالت کوررنگ (چهار طرح متناوب)
+class _PatternPainter extends CustomPainter {
+  final int patternIndex; // 0..3
+  const _PatternPainter({required this.patternIndex});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.18)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    switch (patternIndex) {
+      case 0: // خطوط مورب ↘
+        for (double x = -size.height; x < size.width; x += 12) {
+          canvas.drawLine(
+            Offset(x, 0),
+            Offset(x + size.height, size.height),
+            paint,
+          );
+        }
+        break;
+      case 1: // شبکه نقطه‌ای
+        for (double y = 4; y < size.height; y += 14) {
+          for (double x = 4; x < size.width; x += 14) {
+            canvas.drawCircle(Offset(x, y), 2, paint);
+          }
+        }
+        break;
+      case 2: // امواج افقی
+        final path = Path();
+        final amplitude = 4.0;
+        final wavelength = 24.0;
+        for (double y = 0; y <= size.height; y += 14) {
+          path.reset();
+          path.moveTo(0, y);
+          for (double x = 0; x <= size.width; x += 4) {
+            final dy = sin((x / wavelength) * 2 * pi) * amplitude;
+            path.lineTo(x, y + dy);
+          }
+          canvas.drawPath(path, paint);
+        }
+        break;
+      case 3: // ضربدرهای کوچک
+        for (double y = 6; y < size.height; y += 16) {
+          for (double x = 6; x < size.width; x += 16) {
+            canvas.drawLine(Offset(x - 4, y - 4), Offset(x + 4, y + 4), paint);
+            canvas.drawLine(Offset(x - 4, y + 4), Offset(x + 4, y - 4), paint);
+          }
+        }
+        break;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PatternPainter oldDelegate) =>
+      oldDelegate.patternIndex != patternIndex;
+}
+
+// ------------------------------------------------------------
+// Animated Gradient Background + Blobs
+// ------------------------------------------------------------
+class AnimatedBackground extends StatelessWidget {
+  final AnimationController controller;
+  final bool dark;
+  const AnimatedBackground({
+    super.key,
+    required this.controller,
+    required this.dark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (_, __) {
+        final t = controller.value;
+        // چند رنگ که در طول زمان چرخش هیو داشته باشند
+        Color shift(Color c, double v) {
+          final hsl = HSLColor.fromColor(c);
+          return hsl.withHue((hsl.hue + v) % 360).toColor();
+        }
+
+        final base1 = shift(const Color(0xFF201F5E), t * 40);
+        final base2 = shift(const Color(0xFF3C1E6E), t * 80);
+        final base3 = shift(const Color(0xFFFF6EC7), t * 120);
+        return Container(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(
+                -0.3 + 0.6 * sin(t * pi * 2),
+                -0.2 + 0.4 * cos(t * pi * 2),
+              ),
+              radius: 1.2,
+              colors: [base1, base2, base3.withOpacity(0.9)],
+            ),
+          ),
+          child: CustomPaint(painter: _BlobPainter(t: t)),
+        );
+      },
+    );
+  }
+}
+
+class _BlobPainter extends CustomPainter {
+  final double t;
+  _BlobPainter({required this.t});
+  final List<Color> colors = const [
+    Color(0x33FFFFFF),
+    Color(0x22FFB6F2),
+    Color(0x3357FFF5),
+    Color(0x22FFC778),
+  ];
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (int i = 0; i < 18; i++) {
+      final p = Offset(
+        (sin(t * 2 * pi + i) * 0.4 + 0.5) * size.width + sin(i * 11) * 8,
+        (cos(t * 2 * pi + i * 0.7) * 0.4 + 0.5) * size.height + cos(i * 7) * 8,
+      );
+      final r = 60 + (sin(t * 6 + i) + 1) * 50;
+      final paint = Paint()
+        ..color = colors[i % colors.length].withOpacity(
+          0.4 + 0.3 * sin(t * 4 + i),
+        )
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
+      canvas.drawCircle(p, r, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BlobPainter oldDelegate) => oldDelegate.t != t;
+}
+
+// ------------------------------------------------------------
+// Gradient Title
+// ------------------------------------------------------------
+class _GradientTitle extends StatelessWidget {
+  final String text;
+  const _GradientTitle({required this.text});
+  @override
+  Widget build(BuildContext context) {
+    final style = GoogleFonts.vazirmatn(
+      fontSize: 28,
+      fontWeight: FontWeight.w800,
+      letterSpacing: -0.5,
+    );
+    return ShaderMask(
+      shaderCallback: (rect) => const LinearGradient(
+        colors: [Color(0xFFFFB6F2), Color(0xFF72F1B8), Color(0xFF00E5FF)],
+      ).createShader(rect),
+      child: Text(text, style: style.copyWith(color: Colors.white)),
+    );
+  }
+}
+
+class _CircularGlassButton extends StatelessWidget {
+  final Widget icon;
+  final VoidCallback onTap;
+  final String? tooltip;
+  final Color? baseColor;
+  const _CircularGlassButton({
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+    this.baseColor,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final c = baseColor ?? (Theme.of(context).colorScheme.primary);
+    final bright = c.withOpacity(0.95);
+    final soft = c.withOpacity(0.55);
+    final btn = InkWell(
+      onTap: onTap,
+      customBorder: const CircleBorder(),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 260),
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [bright, soft],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.6),
+          boxShadow: [
+            BoxShadow(
+              color: c.withOpacity(0.55),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: Colors.white.withOpacity(0.65),
+              blurRadius: 10,
+              spreadRadius: -4,
+            ),
+          ],
+        ),
+        child: IconTheme(
+          data: IconThemeData(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Colors.black87,
+            size: 26,
+          ),
+          child: Center(child: icon),
+        ),
+      ),
+    );
+    if (tooltip != null) {
+      return Tooltip(message: tooltip!, child: btn);
+    }
+    return btn;
+  }
+}
+
+// ------------------------------------------------------------
+// Bottom Action Bar
+// ------------------------------------------------------------
+class _ActionBar extends StatelessWidget {
+  final VoidCallback onPickImage;
+  final VoidCallback onShuffleIncorrect;
+  final VoidCallback onToggleNumbers;
+  final VoidCallback onReset;
+  final void Function(int) onChangeDim;
+  final int dimension;
+  final bool showNumbers;
+  final bool darkMode;
+  final VoidCallback onToggleDark;
+  final VoidCallback onToggleColorBlind;
+  final bool colorBlindMode;
+  const _ActionBar({
+    required this.onPickImage,
+    required this.onShuffleIncorrect,
+    required this.onToggleNumbers,
+    required this.onReset,
+    required this.onChangeDim,
+    required this.dimension,
+    required this.showNumbers,
+    required this.darkMode,
+    required this.onToggleDark,
+    required this.onToggleColorBlind,
+    required this.colorBlindMode,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(40),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.45),
+                Colors.white.withOpacity(0.18),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.35),
+              width: 1.3,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.40),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              _CircularGlassButton(
+                icon: const Icon(Icons.image_outlined),
+                onTap: onPickImage,
+                tooltip: 'انتخاب تصویر',
+                baseColor: const Color(0xFF34C3FF),
+              ),
+              _CircularGlassButton(
+                icon: const Icon(Icons.auto_fix_high),
+                onTap: onShuffleIncorrect,
+                tooltip: 'شافل نامرتب‌ها',
+                baseColor: const Color(0xFF9B6BFF),
+              ),
+              _CircularGlassButton(
+                icon: Icon(
+                  showNumbers ? Icons.visibility_off : Icons.visibility,
+                ),
+                onTap: onToggleNumbers,
+                tooltip: showNumbers ? 'مخفی کردن شماره' : 'نمایش شماره',
+                baseColor: const Color(0xFFFFC038),
+              ),
+              _CircularGlassButton(
+                icon: const Icon(Icons.refresh),
+                onTap: onReset,
+                tooltip: 'شروع دوباره',
+                baseColor: const Color(0xFFFF5A5F),
+              ),
+              PopupMenuButton<int>(
+                tooltip: 'ابعاد',
+                onSelected: onChangeDim,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                itemBuilder: (_) => [3, 4, 5]
+                    .map(
+                      (e) => PopupMenuItem(
+                        value: e,
+                        child: Text(
+                          '🧩 ${_toFaDigits('$e×$e')}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                child: _CircularGlassButton(
+                  icon: const Icon(Icons.grid_on),
+                  onTap: () {},
+                  tooltip: 'ابعاد',
+                  baseColor: const Color(0xFF58D66D),
+                ),
+              ),
+              _CircularGlassButton(
+                icon: Icon(darkMode ? Icons.light_mode : Icons.dark_mode),
+                onTap: onToggleDark,
+                tooltip: darkMode ? 'حالت روشن' : 'حالت تیره',
+                baseColor: const Color(0xFFFF78D5),
+              ),
+              _CircularGlassButton(
+                icon: Icon(
+                  colorBlindMode ? Icons.visibility : Icons.visibility_outlined,
+                ),
+                onTap: onToggleColorBlind,
+                tooltip: colorBlindMode ? 'رنگ معمولی' : 'حالت مناسب کوررنگی',
+                baseColor: const Color(0xFF0072B2),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// Animated tap scale wrapper
+// ------------------------------------------------------------
+class _AnimatedTapScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  const _AnimatedTapScale({required this.child, required this.onTap});
+  @override
+  State<_AnimatedTapScale> createState() => _AnimatedTapScaleState();
+}
+
+class _AnimatedTapScaleState extends State<_AnimatedTapScale> {
+  double _scale = 1;
+  void _down(_) => setState(() => _scale = 0.92);
+  void _up(_) => setState(() => _scale = 1);
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      onTapDown: _down,
+      onTapUp: _up,
+      onTapCancel: () => setState(() => _scale = 1),
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// Win Dialog
+// ------------------------------------------------------------
+class _WinDialog extends StatelessWidget {
+  final int moves;
+  final String time;
+  final VoidCallback onReplay;
+  const _WinDialog({
+    required this.moves,
+    required this.time,
+    required this.onReplay,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.white.withOpacity(0.10),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(26, 30, 26, 26),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(32),
+          gradient: LinearGradient(
+            colors: [
+              Colors.white.withOpacity(0.40),
+              Colors.white.withOpacity(0.16),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: Colors.white.withOpacity(0.65), width: 1.3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.45),
+              blurRadius: 30,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            const Text(
+              '🥳 تبریک!',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'پازل را در ${_toFaDigits(moves)} حرکت و زمان $time حل کردی!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 22),
+            ElevatedButton.icon(
+              onPressed: onReplay,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6EC7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 26,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              label: const Text(
+                'دوباره',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// Particles Painter (simple radial burst)
+// ------------------------------------------------------------
+class ParticleBurstPainter extends CustomPainter {
+  final double progress; // 0..1
+  final int seed;
+  ParticleBurstPainter({required this.progress, required this.seed});
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0) return;
+    final center = size.center(Offset.zero);
+    final rnd = Random(seed);
+    final count = 140;
+    for (int i = 0; i < count; i++) {
+      final ang = (i / count) * 2 * pi + rnd.nextDouble() * 0.5;
+      final speed = 80 + rnd.nextDouble() * 260;
+      final radius = Curves.easeOut.transform(progress) * speed;
+      final pos = center + Offset(cos(ang), sin(ang)) * radius;
+      final sizeP = 3 + rnd.nextDouble() * 6 * (1 - progress);
+      final paint = Paint()
+        ..color = Color.lerp(
+          const Color(0xFFFF6EC7),
+          const Color(0xFF00E5FF),
+          (i / count),
+        )!.withOpacity(1 - progress);
+      canvas.drawCircle(pos, sizeP, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant ParticleBurstPainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
+// ------------------------------------------------------------
+// END ADDITIONS
+// ------------------------------------------------------------
 
 void main() {
   runApp(const MainApp());
