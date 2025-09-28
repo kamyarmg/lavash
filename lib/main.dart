@@ -3,7 +3,20 @@ import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// ------------------------------
+// تبدیل ارقام لاتین به فارسی
+// ------------------------------
+String _toFaDigits(dynamic input) {
+  final persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  return input.toString().replaceAllMapped(
+    RegExp(r'\d'),
+    (m) => persian[int.parse(m[0]!)],
+  );
+}
 
 // ---------------------------------------------
 // مدل کاشی (Tile)
@@ -172,28 +185,105 @@ class MainApp extends StatefulWidget {
 class _MainAppState extends State<MainApp> {
   int dimension = 3;
   late PuzzleBoard board;
-  ui.Image? image; // تصویر برش داده می‌شود
-  XFile? pickedFile; // از XFile برای پشتیبانی وب/دسکتاپ بهتر
+  ui.Image? image; // تصویر انتخاب‌شده
+  XFile? pickedFile;
   final rng = Random();
-  Timer? timer;
+  Timer? _timer;
   int seconds = 0;
   int moves = 0;
   bool showNumbers = false;
+  bool darkMode = false; // fastMode حذف شد
+
+  // رکوردها
+  int? bestMoves;
+  int? bestTime; // ثانیه
+  // رنگ‌های ثابت (حذف سیستم پالت)
+  // گرادیان روشن و درخشان که در هر دو مود زیبا باشد.
+  // اگر کاربر مود تیره را بزند، یک لایه تیره شفاف روی آن اعمال می‌کنیم.
+  static const Color _accentColor = Color(0xFF00BFA5); // فیروزه‌ای آرام
+
+  // کش برش‌ها
+  List<ui.Image?>? _slices; // طول = tiles.length -1
+  bool _buildingCache = false;
 
   @override
   void initState() {
     super.initState();
     board = PuzzleBoard.solved(dimension).shuffled(rng);
+    _loadRecords();
   }
 
   void _startTimer() {
-    timer?.cancel();
+    _timer?.cancel();
     seconds = 0;
-    timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      if (board.isSolved) return; // توقف زمان بعد از حل
+      if (board.isSolved) return;
       setState(() => seconds++);
     });
+  }
+
+  Future<void> _loadRecords() async {
+    final sp = await SharedPreferences.getInstance();
+    bestMoves = sp.getInt('best_moves_${dimension}');
+    bestTime = sp.getInt('best_time_${dimension}');
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _saveRecordIfBetter() async {
+    final sp = await SharedPreferences.getInstance();
+    bool changed = false;
+    if (bestMoves == null || moves < bestMoves!) {
+      bestMoves = moves;
+      await sp.setInt('best_moves_${dimension}', moves);
+      changed = true;
+    }
+    if (bestTime == null || seconds < bestTime!) {
+      bestTime = seconds;
+      await sp.setInt('best_time_${dimension}', seconds);
+      changed = true;
+    }
+    if (changed && mounted) setState(() {});
+  }
+
+  // progress bar حذف شد
+
+  void _toggleDark() => setState(() => darkMode = !darkMode);
+  // حالت سریع حذف شد
+
+  Future<void> _buildSlices() async {
+    if (image == null) {
+      _slices = null;
+      if (mounted) setState(() {});
+      return;
+    }
+    _buildingCache = true;
+    if (mounted) setState(() {});
+    try {
+      final img = image!;
+      final dim = dimension;
+      final tileW = img.width / dim;
+      final tileH = img.height / dim;
+      final list = List<ui.Image?>.filled(dim * dim - 1, null);
+      for (int i = 0; i < list.length; i++) {
+        final r = i ~/ dim;
+        final c = i % dim;
+        final rec = ui.PictureRecorder();
+        final canvas = Canvas(rec);
+        final src = Rect.fromLTWH(c * tileW, r * tileH, tileW, tileH);
+        final dst = Rect.fromLTWH(0, 0, tileW, tileH);
+        canvas.drawImageRect(img, src, dst, Paint());
+        final pic = rec.endRecording();
+        final sub = await pic.toImage(tileW.toInt(), tileH.toInt());
+        list[i] = sub;
+      }
+      _slices = list;
+    } catch (e) {
+      // ignore: avoid_print
+      print('slice cache failed: $e');
+    }
+    _buildingCache = false;
+    if (mounted) setState(() {});
   }
 
   Future<void> _pickImage() async {
@@ -210,6 +300,7 @@ class _MainAppState extends State<MainApp> {
       setState(() => image = frame.image);
       // سپس بورد ریست می‌شود (خارج از همان setState برای جلوگیری از مشکلات رندر)
       _reset(shuffle: true);
+      _buildSlices();
       // لاگ ساده برای اطمینان
       // (می‌توانید بعداً حذف کنید)
       // ignore: avoid_print
@@ -229,12 +320,16 @@ class _MainAppState extends State<MainApp> {
     }
     moves = 0;
     _startTimer();
+    _slices = null;
+    _buildingCache = false;
     setState(() {});
+    if (image != null) _buildSlices();
   }
 
   void _changeDimension(int d) {
     dimension = d;
     _reset(shuffle: true);
+    _loadRecords();
   }
 
   void _onTileTap(int tileArrayIndex) {
@@ -244,7 +339,7 @@ class _MainAppState extends State<MainApp> {
       moves++;
       setState(() {});
       if (board.isSolved) {
-        timer?.cancel();
+        _timer?.cancel();
         Future.delayed(const Duration(milliseconds: 300), () {
           if (!mounted) return;
           showDialog(
@@ -252,7 +347,7 @@ class _MainAppState extends State<MainApp> {
             builder: (_) => AlertDialog(
               title: const Text('تبریک!'),
               content: Text(
-                'پازل را در $moves حرکت و ${_formatTime(seconds)} حل کردید.',
+                'پازل را در ${_toFaDigits(moves)} حرکت و ${_formatTime(seconds)} حل کردید.',
               ),
               actions: [
                 TextButton(
@@ -266,6 +361,7 @@ class _MainAppState extends State<MainApp> {
             ),
           );
         });
+        _saveRecordIfBetter();
       }
     }
   }
@@ -273,129 +369,246 @@ class _MainAppState extends State<MainApp> {
   String _formatTime(int sec) {
     final m = sec ~/ 60;
     final s = sec % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    final result =
+        '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    return _toFaDigits(result);
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = ThemeData(
+      brightness: darkMode ? Brightness.dark : Brightness.light,
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: _accentColor,
+        brightness: darkMode ? Brightness.dark : Brightness.light,
+      ),
+      textTheme: GoogleFonts.vazirmatnTextTheme(
+        darkMode ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
+      ),
+      scaffoldBackgroundColor: Colors.transparent,
+    );
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('پازل اسلایدی'),
-          actions: [
-            IconButton(
-              tooltip: 'انتخاب تصویر',
-              icon: const Icon(Icons.image_outlined),
-              onPressed: _pickImage,
+      theme: theme,
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          extendBodyBehindAppBar: true,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            title: Text(
+              'پازل اسلایدی',
+              style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w600),
             ),
-            IconButton(
-              tooltip: 'شافل تایل‌های نامرتب',
-              icon: const Icon(Icons.shuffle),
-              onPressed: () {
-                setState(() {
-                  board.partialShuffleIncorrect(rng);
-                });
+            actions: [
+              IconButton(
+                tooltip: darkMode ? 'حالت روشن' : 'حالت تیره',
+                onPressed: _toggleDark,
+                icon: Icon(darkMode ? Icons.light_mode : Icons.dark_mode),
+              ),
+              IconButton(
+                tooltip: 'انتخاب تصویر',
+                icon: const Icon(Icons.image_outlined),
+                onPressed: _pickImage,
+              ),
+              IconButton(
+                tooltip: 'شافل نامرتب‌ها',
+                icon: const Icon(Icons.auto_fix_high),
+                onPressed: () =>
+                    setState(() => board.partialShuffleIncorrect(rng)),
+              ),
+              PopupMenuButton<int>(
+                tooltip: 'ابعاد',
+                onSelected: _changeDimension,
+                itemBuilder: (_) => [3, 4, 5]
+                    .map(
+                      (e) => PopupMenuItem(
+                        value: e,
+                        child: Text(_toFaDigits('${e}×$e')),
+                      ),
+                    )
+                    .toList(),
+                icon: const Icon(Icons.grid_on),
+              ),
+              IconButton(
+                tooltip: showNumbers ? 'مخفی کردن شماره' : 'نمایش شماره',
+                onPressed: () => setState(() => showNumbers = !showNumbers),
+                icon: Icon(showNumbers ? Icons.filter_9_plus : Icons.numbers),
+              ),
+              IconButton(
+                tooltip: 'شروع دوباره',
+                icon: const Icon(Icons.refresh),
+                onPressed: () => _reset(shuffle: true),
+              ),
+            ],
+          ),
+          body: Container(
+            color: darkMode ? const Color(0xFF121212) : Colors.white,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final maxBoard = min(
+                  constraints.maxWidth,
+                  constraints.maxHeight - 220,
+                ).clamp(240.0, 640.0);
+                return Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 110, 20, 32),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 820),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _TopStats(
+                            moves: moves,
+                            time: _formatTime(seconds),
+                            dim: dimension,
+                            bestMoves: bestMoves,
+                            bestTime: bestTime,
+                          ),
+                          const SizedBox(height: 12),
+                          _BoardFrame(
+                            dark: darkMode,
+                            child: SizedBox(
+                              width: maxBoard,
+                              height: maxBoard,
+                              child: _PuzzleView(
+                                board: board,
+                                dimension: dimension,
+                                image: image,
+                                showNumbers: showNumbers,
+                                onTileTap: _onTileTap,
+                                slices: _slices,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          if (image == null)
+                            Text(
+                              'برای شروع یک تصویر انتخاب کنید.',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: darkMode
+                                        ? Colors.white70
+                                        : Colors.black54,
+                                  ),
+                              textAlign: TextAlign.center,
+                            ),
+                          if (_buildingCache)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16.0),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'در حال آماده‌سازی تصویر...',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
               },
             ),
-            PopupMenuButton<int>(
-              tooltip: 'ابعاد',
-              onSelected: _changeDimension,
-              itemBuilder: (_) => [3, 4, 5]
-                  .map((e) => PopupMenuItem(value: e, child: Text('${e}x$e')))
-                  .toList(),
-              icon: const Icon(Icons.grid_on),
-            ),
-            IconButton(
-              tooltip: 'نمایش/مخفی شماره‌ها',
-              onPressed: () => setState(() => showNumbers = !showNumbers),
-              icon: Icon(showNumbers ? Icons.numbers : Icons.tag),
-            ),
-            IconButton(
-              tooltip: 'تازه سازی',
-              icon: const Icon(Icons.refresh),
-              onPressed: () => _reset(shuffle: true),
-            ),
-          ],
-        ),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            final size = min(constraints.maxWidth, constraints.maxHeight - 140);
-            return Center(
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _InfoBar(
-                      moves: moves,
-                      time: _formatTime(seconds),
-                      dim: dimension,
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: size,
-                      height: size,
-                      child: _PuzzleView(
-                        board: board,
-                        dimension: dimension,
-                        image: image,
-                        showNumbers: showNumbers,
-                        onTileTap: _onTileTap,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (image == null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                        child: Text(
-                          'برای شروع می‌توانید دکمه تصویر را بزنید یا همین حالا با زمینه رنگی بازی کنید.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            );
-          },
+          ),
         ),
       ),
     );
   }
 }
 
-class _InfoBar extends StatelessWidget {
+class _TopStats extends StatelessWidget {
   final int moves;
   final String time;
   final int dim;
-  const _InfoBar({required this.moves, required this.time, required this.dim});
-
+  final int? bestMoves;
+  final int? bestTime;
+  const _TopStats({
+    required this.moves,
+    required this.time,
+    required this.dim,
+    required this.bestMoves,
+    required this.bestTime,
+  });
   @override
   Widget build(BuildContext context) {
     return Wrap(
       alignment: WrapAlignment.center,
-      spacing: 24,
-      runSpacing: 8,
+      spacing: 14,
+      runSpacing: 10,
       children: [
-        _chip(Icons.timer, time, 'زمان'),
-        _chip(Icons.swipe, '$moves', 'حرکت'),
-        _chip(Icons.grid_4x4, '${dim}x$dim', 'ابعاد'),
+        _chip(context, Icons.timer_outlined, time, 'زمان'),
+        _chip(context, Icons.swipe, _toFaDigits(moves), 'حرکت'),
+        _chip(context, Icons.grid_4x4, _toFaDigits('${dim}×$dim'), 'ابعاد'),
+        _chip(context, Icons.emoji_events_outlined, _recordText(), 'رکورد'),
       ],
     );
   }
 
-  Widget _chip(IconData icon, String value, String label) {
-    return Chip(
-      avatar: Icon(icon, size: 18),
-      label: Column(
+  String _recordText() {
+    if (bestMoves == null && bestTime == null) return '—';
+    final bm = bestMoves != null ? _toFaDigits(bestMoves!) : '—';
+    final bt = bestTime != null ? _toFaDigits('${bestTime!}ث') : '—';
+    return '$bm / $bt';
+  }
+
+  Widget _chip(BuildContext ctx, IconData icon, String value, String label) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(ctx).colorScheme.surface.withOpacity(0.25),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white24, width: 1),
+      ),
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text(label, style: const TextStyle(fontSize: 11)),
+          Icon(icon, size: 18),
+          const SizedBox(width: 6),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(label, style: const TextStyle(fontSize: 11)),
+            ],
+          ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    );
+  }
+}
+
+class _BoardFrame extends StatelessWidget {
+  final Widget child;
+  final bool dark;
+  const _BoardFrame({required this.child, required this.dark});
+  @override
+  Widget build(BuildContext context) {
+    final color = Colors.white.withOpacity(dark ? 0.06 : 0.10);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        color: color,
+        border: Border.all(color: Colors.black12, width: 1),
+      ),
+      child: child,
     );
   }
 }
@@ -406,12 +619,15 @@ class _PuzzleView extends StatelessWidget {
   final ui.Image? image;
   final bool showNumbers;
   final void Function(int tileArrayIndex) onTileTap;
+  final List<ui.Image?>? slices;
+  // fastMode حذف شد
   const _PuzzleView({
     required this.board,
     required this.dimension,
     required this.image,
     required this.showNumbers,
     required this.onTileTap,
+    required this.slices,
   });
 
   @override
@@ -424,7 +640,18 @@ class _PuzzleView extends StatelessWidget {
           return Stack(
             children: [
               // زمینه
-              Container(color: Colors.grey.shade300),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withOpacity(0.15),
+                      Colors.white.withOpacity(0.05),
+                    ],
+                  ),
+                ),
+              ),
               for (int i = 0; i < board.tiles.length - 1; i++)
                 _buildTile(context, board.tiles[i], tileSize),
               if (board.isSolved && image != null)
@@ -452,7 +679,7 @@ class _PuzzleView extends StatelessWidget {
     final correctRow = correctPos ~/ dimension;
     final correctCol = correctPos % dimension;
     return AnimatedPositioned(
-      duration: const Duration(milliseconds: 180),
+      duration: const Duration(milliseconds: 160),
       curve: Curves.easeInOut,
       left: col * tileSize,
       top: row * tileSize,
@@ -468,6 +695,10 @@ class _PuzzleView extends StatelessWidget {
           showNumber: showNumbers,
           index: tile.correctIndex,
           isCorrect: tile.inCorrectPlace,
+          slice:
+              slices != null && tile.correctIndex < (dimension * dimension - 1)
+              ? slices![tile.correctIndex]
+              : null,
         ),
       ),
     );
@@ -482,6 +713,8 @@ class _TileContent extends StatelessWidget {
   final bool showNumber;
   final int index;
   final bool isCorrect;
+  final ui.Image? slice;
+  // fastMode حذف شد
   const _TileContent({
     required this.image,
     required this.dimension,
@@ -490,28 +723,62 @@ class _TileContent extends StatelessWidget {
     required this.showNumber,
     required this.index,
     required this.isCorrect,
+    required this.slice,
   });
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    // رنگ پاستیلی شبه تصادفی بر اساس اندیس
+    Color pastel(int i, bool correct) {
+      final hue = (i * 53) % 360; // پخش یکنواخت
+      final hsl = HSLColor.fromAHSL(
+        1,
+        hue.toDouble(),
+        0.55,
+        correct ? 0.70 : 0.78,
+      );
+      return hsl.toColor();
+    }
+
+    final baseColor = pastel(index, isCorrect);
+    final child = Container(
       decoration: BoxDecoration(
-        color: image == null
-            ? (isCorrect ? Colors.teal : Colors.teal.shade300)
-            : Colors.white,
-        border: Border.all(color: Colors.white, width: 1),
+        gradient: image == null
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  baseColor.withOpacity(0.95),
+                  baseColor.withOpacity(0.7),
+                ],
+              )
+            : null,
+        color: image == null ? null : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black12, width: 1),
       ),
       child: Stack(
         fit: StackFit.expand,
         children: [
           if (image != null)
-            CustomPaint(
-              painter: _ImagePainter(
-                image!,
-                dimension: dimension,
-                clipRow: correctRow,
-                clipCol: correctCol,
-              ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: slice != null
+                  ? FittedBox(
+                      fit: BoxFit.cover,
+                      child: RawImage(
+                        image: slice,
+                        filterQuality: FilterQuality.medium,
+                      ),
+                    )
+                  : CustomPaint(
+                      painter: _ImagePainter(
+                        image!,
+                        dimension: dimension,
+                        clipRow: correctRow,
+                        clipCol: correctCol,
+                      ),
+                    ),
             ),
           if (showNumber)
             Align(
@@ -524,7 +791,7 @@ class _TileContent extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '${index + 1}',
+                  _toFaDigits(index + 1),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -536,6 +803,7 @@ class _TileContent extends StatelessWidget {
         ],
       ),
     );
+    return child;
   }
 }
 
