@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show File; // برای نمایش تصویر انتخابی کاربر در اسلایدر
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -359,7 +360,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       final frame = await codec.getNextFrame();
       if (!mounted) return;
       // ابتدا تصویر ست می‌شود
-      setState(() => image = frame.image);
+      setState(() {
+        image = frame.image;
+        // مسیر انتخاب شده را به عنوان selected نگه می‌داریم تا در اسلایدر سنتر شود
+        _selectedAssetPath = pickedFile!.path;
+      });
       // سپس بورد ریست می‌شود (خارج از همان setState برای جلوگیری از مشکلات رندر)
       _reset(shuffle: true);
       _buildSlices();
@@ -495,6 +500,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                               width: maxBoard,
                               child: _AssetSlider(
                                 assets: _assetImages,
+                                userPath: pickedFile?.path,
                                 selected: _selectedAssetPath,
                                 onSelect: (p) => _loadAssetImage(p),
                               ),
@@ -563,33 +569,102 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
 // ------------------------------------------------------------
 // Slider of asset images
 // ------------------------------------------------------------
-class _AssetSlider extends StatelessWidget {
+class _AssetSlider extends StatefulWidget {
   final List<String> assets;
+  final String? userPath; // مسیر تصویر انتخابی کاربر (File path)
   final String? selected;
   final ValueChanged<String> onSelect;
   const _AssetSlider({
     required this.assets,
     required this.selected,
     required this.onSelect,
+    this.userPath,
   });
+  @override
+  State<_AssetSlider> createState() => _AssetSliderState();
+}
+
+class _AssetSliderState extends State<_AssetSlider> {
+  final _controller = ScrollController();
+  static const _thumbWidth = 96.0;
+  static const _thumbMarginH = 6.0; // دو طرف هر آیتم
+
+  List<String> get _allItems {
+    // اگر کاربر تصویری انتخاب کرده، آن را به عنوان اولین آیتم موقت قرار می‌دهیم
+    if (widget.userPath != null) {
+      return ['FILE://${widget.userPath}'] + widget.assets;
+    }
+    return widget.assets;
+  }
+
+  @override
+  void didUpdateWidget(covariant _AssetSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selected != widget.selected ||
+        oldWidget.userPath != widget.userPath) {
+      // پس از یک فریم تا layout انجام شود
+      WidgetsBinding.instance.addPostFrameCallback((_) => _centerSelected());
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _centerSelected());
+  }
+
+  void _centerSelected() {
+    if (!_controller.hasClients) return;
+    final items = _allItems;
+    final selPath = widget.selected;
+    if (selPath == null) return;
+
+    // Resolve index considering file prefix
+    int index = items.indexWhere((p) {
+      if (p.startsWith('FILE://')) {
+        final real = p.substring(7);
+        return real == selPath;
+      }
+      return p == selPath;
+    });
+    if (index < 0) return;
+
+    // محاسبه عرض موثر هر آیتم (عرض + حاشیه‌های افقی دو طرف)
+    final perItem = _thumbWidth + (_thumbMarginH * 2);
+    final viewport = _controller.position.viewportDimension;
+    final targetCenterOffset = index * perItem + perItem / 2 - viewport / 2;
+    final maxScroll = _controller.position.maxScrollExtent;
+    final clamped = targetCenterOffset.clamp(0, maxScroll);
+    _controller.animateTo(
+      clamped.toDouble(),
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final items = _allItems;
     return SizedBox(
       height: 110,
       child: ListView.builder(
+        controller: _controller,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 2),
-        itemCount: assets.length,
+        itemCount: items.length,
         itemBuilder: (c, i) {
-          final path = assets[i];
-          final isSel = path == selected;
+          final rawPath = items[i];
+          final isFile = rawPath.startsWith('FILE://');
+          final displayPath = isFile ? rawPath.substring(7) : rawPath;
+          final isSel = displayPath == widget.selected;
           return _SliderThumb(
             index: i,
-            path: path,
+            path: displayPath,
             selected: isSel,
-            onTap: () => onSelect(path),
+            onTap: () => widget.onSelect(displayPath),
             accent: theme.colorScheme.primary,
+            isFile: isFile,
           );
         },
       ),
@@ -603,12 +678,14 @@ class _SliderThumb extends StatefulWidget {
   final bool selected;
   final VoidCallback onTap;
   final Color accent;
+  final bool isFile; // آیا تصویر فایل کاربر است
   const _SliderThumb({
     required this.index,
     required this.path,
     required this.selected,
     required this.onTap,
     required this.accent,
+    this.isFile = false,
   });
   @override
   State<_SliderThumb> createState() => _SliderThumbState();
@@ -699,7 +776,9 @@ class _SliderThumbState extends State<_SliderThumb>
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          Image.asset(widget.path, fit: BoxFit.cover),
+                          widget.isFile
+                              ? Image.file(File(widget.path), fit: BoxFit.cover)
+                              : Image.asset(widget.path, fit: BoxFit.cover),
                           // Subtle parallax / shine overlay
                           AnimatedBuilder(
                             animation: _shine,
