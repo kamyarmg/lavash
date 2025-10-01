@@ -447,7 +447,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       textTheme: GoogleFonts.vazirmatnTextTheme(
         darkMode ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
       ),
-      scaffoldBackgroundColor: Colors.transparent,
+      scaffoldBackgroundColor: Colors.white,
     );
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -473,8 +473,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
           ),
           body: Stack(
             children: [
-              AnimatedBackground(controller: _bgAnim, dark: darkMode),
-              if (darkMode) Container(color: Colors.black.withOpacity(0.25)),
+              // پس زمینه گرادیان حذف شد؛ پس زمینه سفید ساده
+              Container(color: Colors.white),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final maxBoard = min(
@@ -1037,77 +1037,7 @@ class _ImagePainter extends CustomPainter {
 // ------------------------------------------------------------
 // Animated Gradient Background + Blobs
 // ------------------------------------------------------------
-class AnimatedBackground extends StatelessWidget {
-  final AnimationController controller;
-  final bool dark;
-  const AnimatedBackground({
-    super.key,
-    required this.controller,
-    required this.dark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (_, __) {
-        final t = controller.value;
-        // چند رنگ که در طول زمان چرخش هیو داشته باشند
-        Color shift(Color c, double v) {
-          final hsl = HSLColor.fromColor(c);
-          return hsl.withHue((hsl.hue + v) % 360).toColor();
-        }
-
-        final base1 = shift(const Color(0xFF201F5E), t * 40);
-        final base2 = shift(const Color(0xFF3C1E6E), t * 80);
-        final base3 = shift(const Color(0xFFFF6EC7), t * 120);
-        return Container(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(
-                -0.3 + 0.6 * sin(t * pi * 2),
-                -0.2 + 0.4 * cos(t * pi * 2),
-              ),
-              radius: 1.2,
-              colors: [base1, base2, base3.withOpacity(0.9)],
-            ),
-          ),
-          child: CustomPaint(painter: _BlobPainter(t: t)),
-        );
-      },
-    );
-  }
-}
-
-class _BlobPainter extends CustomPainter {
-  final double t;
-  _BlobPainter({required this.t});
-  final List<Color> colors = const [
-    Color(0x33FFFFFF),
-    Color(0x22FFB6F2),
-    Color(0x3357FFF5),
-    Color(0x22FFC778),
-  ];
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (int i = 0; i < 18; i++) {
-      final p = Offset(
-        (sin(t * 2 * pi + i) * 0.4 + 0.5) * size.width + sin(i * 11) * 8,
-        (cos(t * 2 * pi + i * 0.7) * 0.4 + 0.5) * size.height + cos(i * 7) * 8,
-      );
-      final r = 60 + (sin(t * 6 + i) + 1) * 50;
-      final paint = Paint()
-        ..color = colors[i % colors.length].withOpacity(
-          0.4 + 0.3 * sin(t * 4 + i),
-        )
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
-      canvas.drawCircle(p, r, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _BlobPainter oldDelegate) => oldDelegate.t != t;
-}
+// AnimatedBackground & _BlobPainter حذف شدند تا پس زمینه کاملا سفید باشد
 
 // ------------------------------------------------------------
 // Gradient Title
