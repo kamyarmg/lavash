@@ -172,6 +172,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   ui.Image? image; // تصویر انتخاب‌شده
   XFile? pickedFile;
   final rng = Random();
+  String? _selectedAssetPath; // مسیر انتخاب شده از اسلایدر
   Timer? _timer;
   int seconds = 0;
   int moves = 0;
@@ -286,16 +287,28 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   Future<void> _loadRandomAssetImage() async {
     try {
       final pick = _assetImages[rng.nextInt(_assetImages.length)];
-      final data = await rootBundle.load(pick);
+      await _loadAssetImage(pick);
+    } catch (e) {
+      // ignore: avoid_print
+      print('Random asset image load failed: $e');
+    }
+  }
+
+  Future<void> _loadAssetImage(String path) async {
+    try {
+      final data = await rootBundle.load(path);
       final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
       final frame = await codec.getNextFrame();
       if (!mounted) return;
-      setState(() => image = frame.image);
+      setState(() {
+        _selectedAssetPath = path;
+        image = frame.image;
+      });
       _reset(shuffle: true);
       _buildSlices();
     } catch (e) {
       // ignore: avoid_print
-      print('Random asset image load failed: $e');
+      print('Asset image load failed: $e');
     }
   }
   // حالت سریع حذف شد
@@ -477,6 +490,12 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             // باکس های بالایی (زمان، حرکت، رکورد..) بنا به درخواست حذف شدند
+                            _AssetSlider(
+                              assets: _assetImages,
+                              selected: _selectedAssetPath,
+                              onSelect: (p) => _loadAssetImage(p),
+                            ),
+                            const SizedBox(height: 18),
                             Hero(
                               tag: 'board',
                               child: _FancyFrame(
@@ -532,6 +551,96 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// Slider of asset images
+// ------------------------------------------------------------
+class _AssetSlider extends StatelessWidget {
+  final List<String> assets;
+  final String? selected;
+  final ValueChanged<String> onSelect;
+  const _AssetSlider({
+    required this.assets,
+    required this.selected,
+    required this.onSelect,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 90,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        itemBuilder: (c, i) {
+          final path = assets[i];
+          final isSel = path == selected;
+          return GestureDetector(
+            onTap: () => onSelect(path),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              width: 90,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSel
+                      ? const Color(0xFFFF6EC7)
+                      : Colors.white.withOpacity(0.5),
+                  width: isSel ? 3 : 1.2,
+                ),
+                boxShadow: [
+                  if (isSel)
+                    BoxShadow(
+                      color: const Color(0xFFFF6EC7).withOpacity(0.55),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(path, fit: BoxFit.cover),
+                    if (isSel)
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withOpacity(0.0),
+                              Colors.black.withOpacity(0.35),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                      ),
+                    if (isSel)
+                      const Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: 6),
+                          child: Icon(
+                            Icons.check_circle,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemCount: assets.length,
       ),
     );
   }
