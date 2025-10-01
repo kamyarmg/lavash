@@ -490,10 +490,14 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             // باکس های بالایی (زمان، حرکت، رکورد..) بنا به درخواست حذف شدند
-                            _AssetSlider(
-                              assets: _assetImages,
-                              selected: _selectedAssetPath,
-                              onSelect: (p) => _loadAssetImage(p),
+                            // اسلایدر با همان عرض برد (فقط تصاویر assets فعلی)
+                            SizedBox(
+                              width: maxBoard,
+                              child: _AssetSlider(
+                                assets: _assetImages,
+                                selected: _selectedAssetPath,
+                                onSelect: (p) => _loadAssetImage(p),
+                              ),
                             ),
                             const SizedBox(height: 18),
                             Hero(
@@ -570,77 +574,210 @@ class _AssetSlider extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SizedBox(
-      height: 90,
-      child: ListView.separated(
+      height: 110,
+      child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        itemCount: assets.length,
         itemBuilder: (c, i) {
           final path = assets[i];
           final isSel = path == selected;
-          return GestureDetector(
+          return _SliderThumb(
+            index: i,
+            path: path,
+            selected: isSel,
             onTap: () => onSelect(path),
+            accent: theme.colorScheme.primary,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SliderThumb extends StatefulWidget {
+  final int index;
+  final String path;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color accent;
+  const _SliderThumb({
+    required this.index,
+    required this.path,
+    required this.selected,
+    required this.onTap,
+    required this.accent,
+  });
+  @override
+  State<_SliderThumb> createState() => _SliderThumbState();
+}
+
+class _SliderThumbState extends State<_SliderThumb>
+    with SingleTickerProviderStateMixin {
+  double _hover = 0;
+  late AnimationController _shine;
+  @override
+  void initState() {
+    super.initState();
+    _shine = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _shine.dispose();
+    super.dispose();
+  }
+
+  void _setHover(bool v) {
+    setState(() => _hover = v ? 1 : 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sel = widget.selected;
+    final scale = sel ? 1.0 + 0.06 * (1 - _hover) : 0.90 + 0.07 * _hover;
+    final borderGrad = sel
+        ? LinearGradient(
+            colors: [
+              const Color(0xFFFF80EA),
+              const Color(0xFF00E5FF),
+              const Color(0xFF72F1B8),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : LinearGradient(
+            colors: [
+              Colors.white.withOpacity(0.28),
+              Colors.white.withOpacity(0.10),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          );
+    return Container(
+      width: 96,
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      child: MouseRegion(
+        onEnter: (_) => _setHover(true),
+        onExit: (_) => _setHover(false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedScale(
+            scale: scale,
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutBack,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
+              duration: const Duration(milliseconds: 380),
               curve: Curves.easeOutCubic,
-              width: 90,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSel
-                      ? const Color(0xFFFF6EC7)
-                      : Colors.white.withOpacity(0.5),
-                  width: isSel ? 3 : 1.2,
-                ),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
-                  if (isSel)
+                  if (sel)
                     BoxShadow(
                       color: const Color(0xFFFF6EC7).withOpacity(0.55),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
+                      blurRadius: 22,
+                      offset: const Offset(0, 8),
                     ),
                 ],
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.asset(path, fit: BoxFit.cover),
-                    if (isSel)
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.black.withOpacity(0.0),
-                              Colors.black.withOpacity(0.35),
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
+              child: Stack(
+                children: [
+                  // Outer gradient border
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: borderGrad,
+                    ),
+                    padding: const EdgeInsets.all(3),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.asset(widget.path, fit: BoxFit.cover),
+                          // Subtle parallax / shine overlay
+                          AnimatedBuilder(
+                            animation: _shine,
+                            builder: (_, __) {
+                              final t = _shine.value;
+                              return IgnorePointer(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment(-1 + 2 * t, -1),
+                                      end: Alignment(1 + 2 * t, 1),
+                                      colors: [
+                                        Colors.white.withOpacity(0.0),
+                                        Colors.white.withOpacity(
+                                          sel ? 0.18 : 0.07,
+                                        ),
+                                        Colors.white.withOpacity(0.0),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        ),
+                          // Dark overlay when not selected
+                          if (!sel)
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.black.withOpacity(0.25),
+                                    Colors.black.withOpacity(0.45),
+                                  ],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                ),
+                              ),
+                            ),
+                          // Selection bottom glow & icon
+                          if (sel)
+                            Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Container(
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.transparent,
+                                      const Color(0xFF141414).withOpacity(0.65),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (sel)
+                            const Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Padding(
+                                padding: EdgeInsets.only(bottom: 6),
+                                child: Icon(
+                                  Icons.check_circle,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
+                            ),
+                          // شماره اسلاید حذف شد
+                        ],
                       ),
-                    if (isSel)
-                      const Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Padding(
-                          padding: EdgeInsets.only(bottom: 6),
-                          child: Icon(
-                            Icons.check_circle,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          );
-        },
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemCount: assets.length,
+          ),
+        ),
       ),
     );
   }
@@ -750,7 +887,7 @@ class _PuzzleView extends StatelessWidget {
           dimension: dimension,
           correctRow: correctRow,
           correctCol: correctCol,
-          showNumber: true,
+          showNumber: false,
           index: tile.correctIndex,
           isCorrect: tile.inCorrectPlace,
           slice:
@@ -844,36 +981,7 @@ class _TileContent extends StatelessWidget {
                           ),
                         )
                       : const SizedBox.shrink())),
-            if (showNumber)
-              Align(
-                alignment: Alignment.bottomRight,
-                child: Container(
-                  margin: const EdgeInsets.all(4),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.50),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _toFaDigits(index + 1),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black54,
-                          blurRadius: 4,
-                          offset: Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            // شماره تایل حذف شد
             // افکت اختصاصی حالت بدون تصویر حذف شد
           ],
         ),
