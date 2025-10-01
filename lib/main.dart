@@ -61,7 +61,6 @@ class PuzzleBoard {
     void addIfValid(int r, int c) {
       if (r >= 0 && r < dimension && c >= 0 && c < dimension) {
         final linear = r * dimension + c;
-        // پیدا کردن tile ای که currentIndex == linear
         final tileArrIdx = tiles.indexWhere((t) => t.currentIndex == linear);
         if (tileArrIdx != -1 && tileArrIdx != emptyTileIndex) {
           candidates.add(tileArrIdx);
@@ -88,15 +87,10 @@ class PuzzleBoard {
   }
 
   PuzzleBoard shuffled(Random rng) {
-    // الگوریتم: تولید یک پرموتیشن تصادفی قابل حل.
-    // رویکرد ساده: شافل تصادفی تا زمانی که قابل حل شود (برای dim کوچک اوکی است)
     final maxAttempts = 5000;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       final perm = List<int>.generate(tiles.length, (i) => i);
       perm.shuffle(rng);
-      // اطمینان: خانه خالی باید آخرین آیتم آرایه perm نباشد؟ در حالت solved آخرین است.
-      // ما می‌خواهیم empty همان correctIndex آخر باشد، پس آن را تضمین می‌کنیم.
-      // اگر نبود، جای آن را با آخرین مقدار عوض می‌کنیم.
       final emptyIdxInPerm = perm.indexOf(emptyTileIndex);
       if (emptyIdxInPerm != perm.length - 1) {
         perm[emptyIdxInPerm] = perm.last;
@@ -105,18 +99,16 @@ class PuzzleBoard {
       if (_isSolvable(perm, dimension)) {
         final newTiles = List<Tile>.generate(tiles.length, (i) {
           final correct = i;
-          final current = perm.indexOf(i); // موقعیت فعلی در پرموتیشن
+          final current = perm.indexOf(i);
           return Tile(correctIndex: correct, currentIndex: current);
         });
         return PuzzleBoard._(dimension, newTiles);
       }
     }
-    // اگر نشد برمی‌گردیم خودش را
     return this;
   }
 
   static bool _isSolvable(List<int> perm, int dim) {
-    // حذف empty (آخرین)
     final list = perm.take(perm.length - 1).toList();
     int inversions = 0;
     for (int i = 0; i < list.length; i++) {
@@ -127,10 +119,9 @@ class PuzzleBoard {
     if (dim.isOdd) {
       return inversions.isEven;
     } else {
-      // برای بورد زوج، باید ردیف از پایین (1-based) که تایلی خالی در آن قرار دارد ملاک باشد
-      final emptyLinear = perm.indexOf(perm.length - 1); // باید آخر باشد
-      final emptyRowFromTop = emptyLinear ~/ dim; // 0-based
-      final emptyRowFromBottom = dim - emptyRowFromTop; // 1-based
+      final emptyLinear = perm.indexOf(perm.length - 1);
+      final emptyRowFromTop = emptyLinear ~/ dim;
+      final emptyRowFromBottom = dim - emptyRowFromTop;
       if (emptyRowFromBottom.isOdd) {
         return inversions.isEven;
       } else {
@@ -139,10 +130,6 @@ class PuzzleBoard {
     }
   }
 
-  /// شافل فقط تایل‌هایی که در جای صحیح نیستند (به جز خانه خالی)
-  /// تلاش می‌کند حالت تولید شده solvable بماند. روش: جای صحیح‌ها ثابت می‌ماند
-  /// لیست ایندکس‌های غلط (به جز empty) را گرفته و پرموتیشن جدید روی همان‌ها اعمال می‌کنیم
-  /// سپس اگر وضعیت کلی حل‌پذیر نبود دوباره تلاش می‌کنیم (حداکثر n تلاش)
   PuzzleBoard partialShuffleIncorrect(Random rng) {
     final incorrectTiles = tiles
         .where(
@@ -151,18 +138,15 @@ class PuzzleBoard {
               t.correctIndex != emptyTileIndex,
         )
         .toList();
-    if (incorrectTiles.length < 2) return this; // چیزی برای جابجایی نیست
+    if (incorrectTiles.length < 2) return this;
 
     final attempts = min(incorrectTiles.length * 10, 200);
     for (int attempt = 0; attempt < attempts; attempt++) {
-      // استخراج currentIndex های این گروه
       final positions = incorrectTiles.map((t) => t.currentIndex).toList();
       positions.shuffle(rng);
-      // اعمال موقتی
       for (int i = 0; i < incorrectTiles.length; i++) {
         incorrectTiles[i].currentIndex = positions[i];
       }
-      // تولید پرموتیشن فعلی جهت تست solvable
       final perm = List<int>.filled(tiles.length, -1);
       for (final t in tiles) {
         perm[t.currentIndex] = t.correctIndex;
@@ -170,9 +154,8 @@ class PuzzleBoard {
       if (_isSolvable(perm, dimension)) {
         return this;
       }
-      // اگر نشد ادامه (چون inplace تغییر دادیم، دور بعد دوباره تغییر می‌دهد)
     }
-    return this; // در بدترین حالت بدون تضمین تغییر خاص
+    return this;
   }
 }
 
@@ -493,14 +476,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _TopStats(
-                              moves: moves,
-                              time: _formatTime(seconds),
-                              dim: dimension,
-                              bestMoves: bestMoves,
-                              bestTime: bestTime,
-                            ),
-                            const SizedBox(height: 16),
+                            // باکس های بالایی (زمان، حرکت، رکورد..) بنا به درخواست حذف شدند
                             Hero(
                               tag: 'board',
                               child: _FancyFrame(
@@ -519,30 +495,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                               ),
                             ),
                             const SizedBox(height: 30),
-                            // پیام قبلی و حالت بازی بدون تصویر حذف شد
-                            if (_buildingCache)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 16.0),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'در حال آماده‌سازی تصویر...',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                  ],
-                                ),
-                              ),
                           ],
                         ),
                       ),
@@ -550,7 +502,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   );
                 },
               ),
-              // دکمه‌های کنترل پایین
+              // دکمه های پایین
               Positioned(
                 left: 0,
                 right: 0,
@@ -566,7 +518,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   onToggleDark: _toggleDark,
                 ),
               ),
-              // افکت حل شدن
               if (_justSolved)
                 Positioned.fill(
                   child: IgnorePointer(
@@ -581,96 +532,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _TopStats extends StatelessWidget {
-  final int moves;
-  final String time;
-  final int dim;
-  final int? bestMoves;
-  final int? bestTime;
-  const _TopStats({
-    required this.moves,
-    required this.time,
-    required this.dim,
-    required this.bestMoves,
-    required this.bestTime,
-  });
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 16,
-      runSpacing: 12,
-      children: [
-        _chip(context, '⏱️', time, 'زمان'),
-        _chip(context, '🎯', _toFaDigits(moves), 'حرکت'),
-        _chip(context, '🧩', _toFaDigits('${dim}×$dim'), 'ابعاد'),
-        _chip(context, '🏆', _recordText(), 'رکورد'),
-      ],
-    );
-  }
-
-  String _recordText() {
-    if (bestMoves == null && bestTime == null) return '—';
-    final bm = bestMoves != null ? _toFaDigits(bestMoves!) : '—';
-    final bt = bestTime != null ? _toFaDigits('${bestTime!}ث') : '—';
-    return '$bm / $bt';
-  }
-
-  Widget _chip(BuildContext ctx, String emoji, String value, String label) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 450),
-      curve: Curves.easeOutBack,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFF176), Color(0xFFFFC038), Color(0xFFFF914D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.4),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFFC038).withOpacity(0.55),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 8),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                  color: Colors.black87,
-                ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  height: 1.1,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black54,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
