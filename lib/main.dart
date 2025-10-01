@@ -433,7 +433,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   horizontal: 18.0,
                   vertical: 6,
                 ),
-                child: Center(child: _GradientTitle(text: 'پازل اسلایدی 🧩')),
+                child: Center(
+                  child: _GradientTitle(text: 'پازل کشویی لواش 🧩'),
+                ),
               ),
             ),
           ),
@@ -485,7 +487,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                             const SizedBox(height: 30),
                             if (image == null)
                               Text(
-                                '📸 یک تصویر انتخاب کن تا شروع کنیم! یا با همین رنگ‌ها بازی کن.',
+                                'یک تصویر انتخاب کن تا شروع کنیم! یا با همین رنگ‌ها بازی کن.',
                                 style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(
                                       color: Colors.white.withOpacity(0.85),
