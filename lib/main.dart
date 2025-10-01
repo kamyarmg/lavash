@@ -1137,8 +1137,12 @@ class _ActionBar extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
+    // برای چسبیدن کامل به پایین، padding پایینی قبلی حذف شد.
+    // اگر بخواهید فضای امن (SafeArea) موبایل‌های ناچ‌دار حفظ شود، می‌توانید SafeArea را فعال کنید.
+    // در حال حاضر عمداً از SafeArea صرفنظر شده تا کاملاً به لبه بچسبد. در صورت نیاز:
+    // return SafeArea(top: false, child: ...)
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: Center(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
