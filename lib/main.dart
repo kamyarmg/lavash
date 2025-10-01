@@ -192,7 +192,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   Timer? _timer;
   int seconds = 0;
   int moves = 0;
-  bool showNumbers = false;
+  // نمایش شماره تایل‌ها همیشه فعال است (showNumbers حذف شد)
   bool darkMode = false; // fastMode حذف شد
   // حالت کوررنگی حذف شد
   bool _justSolved = false;
@@ -511,7 +511,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                     board: board,
                                     dimension: dimension,
                                     image: image,
-                                    showNumbers: showNumbers,
                                     onTileTap: _onTileTap,
                                     slices: _slices,
                                     cartoon: _cartoon,
@@ -560,12 +559,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   onPickImage: _pickImage,
                   onShuffleIncorrect: () =>
                       setState(() => board.partialShuffleIncorrect(rng)),
-                  onToggleNumbers: () =>
-                      setState(() => showNumbers = !showNumbers),
                   onReset: () => _reset(shuffle: true),
                   onChangeDim: _changeDimension,
                   dimension: dimension,
-                  showNumbers: showNumbers,
                   darkMode: darkMode,
                   onToggleDark: _toggleDark,
                 ),
@@ -718,7 +714,6 @@ class _PuzzleView extends StatelessWidget {
   final PuzzleBoard board;
   final int dimension;
   final ui.Image? image;
-  final bool showNumbers;
   final void Function(int tileArrayIndex) onTileTap;
   final List<ui.Image?>? slices;
   final AnimationController cartoon;
@@ -727,7 +722,6 @@ class _PuzzleView extends StatelessWidget {
     required this.board,
     required this.dimension,
     required this.image,
-    required this.showNumbers,
     required this.onTileTap,
     required this.slices,
     required this.cartoon,
@@ -786,7 +780,7 @@ class _PuzzleView extends StatelessWidget {
           dimension: dimension,
           correctRow: correctRow,
           correctCol: correctCol,
-          showNumber: showNumbers,
+          showNumber: true,
           index: tile.correctIndex,
           isCorrect: tile.inCorrectPlace,
           slice:
@@ -1127,21 +1121,17 @@ class _CircularGlassButton extends StatelessWidget {
 class _ActionBar extends StatelessWidget {
   final VoidCallback onPickImage;
   final VoidCallback onShuffleIncorrect;
-  final VoidCallback onToggleNumbers;
   final VoidCallback onReset;
   final void Function(int) onChangeDim;
   final int dimension;
-  final bool showNumbers;
   final bool darkMode;
   final VoidCallback onToggleDark;
   const _ActionBar({
     required this.onPickImage,
     required this.onShuffleIncorrect,
-    required this.onToggleNumbers,
     required this.onReset,
     required this.onChangeDim,
     required this.dimension,
-    required this.showNumbers,
     required this.darkMode,
     required this.onToggleDark,
   });
@@ -1191,14 +1181,7 @@ class _ActionBar extends StatelessWidget {
                 tooltip: 'شافل نامرتب‌ها',
                 baseColor: const Color(0xFF9B6BFF),
               ),
-              _CircularGlassButton(
-                icon: Icon(
-                  showNumbers ? Icons.visibility_off : Icons.visibility,
-                ),
-                onTap: onToggleNumbers,
-                tooltip: showNumbers ? 'مخفی کردن شماره' : 'نمایش شماره',
-                baseColor: const Color(0xFFFFC038),
-              ),
+              // دکمه نمایش/مخفی شماره‌ها حذف شد (همیشه نمایش داده می‌شود)
               _CircularGlassButton(
                 icon: const Icon(Icons.refresh),
                 onTap: onReset,
