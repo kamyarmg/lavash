@@ -181,10 +181,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   bool darkMode = false; // fastMode حذف شد
   // حالت کوررنگی حذف شد
   bool _justSolved = false;
-  late AnimationController _bgAnim;
   late AnimationController _solveParticles;
-  late AnimationController _cartoon;
-  final ValueNotifier<int> _pulseNotifier = ValueNotifier(0);
 
   // رکوردها
   int? bestMoves;
@@ -196,25 +193,16 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
 
   // کش برش‌ها
   List<ui.Image?>? _slices; // طول = tiles.length -1
-  bool _buildingCache = false;
 
   @override
   void initState() {
     super.initState();
     board = PuzzleBoard.solved(dimension).shuffled(rng);
     _loadRecords();
-    _bgAnim = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 18),
-    )..repeat();
     _solveParticles = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     );
-    _cartoon = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat();
     // بارگذاری تصادفی یک تصویر از assets هنگام اولین اجرا
     _loadRandomAssetImage();
   }
@@ -222,10 +210,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   @override
   void dispose() {
     _timer?.cancel();
-    _bgAnim.dispose();
     _solveParticles.dispose();
-    _cartoon.dispose();
-    _pulseNotifier.dispose();
     super.dispose();
   }
 
@@ -320,7 +305,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       if (mounted) setState(() {});
       return;
     }
-    _buildingCache = true;
     if (mounted) setState(() {});
     try {
       final img = image!;
@@ -345,7 +329,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       // ignore: avoid_print
       print('slice cache failed: $e');
     }
-    _buildingCache = false;
     if (mounted) setState(() {});
   }
 
@@ -389,7 +372,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     moves = 0;
     _startTimer();
     _slices = null;
-    _buildingCache = false;
     setState(() {});
     if (image != null) _buildSlices();
   }
@@ -405,7 +387,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     final moved = board.move(tileArrayIndex);
     if (moved) {
       moves++;
-      _pulseNotifier.value++;
       setState(() {});
       if (board.isSolved) {
         _timer?.cancel();
@@ -518,7 +499,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                     image: image,
                                     onTileTap: _onTileTap,
                                     slices: _slices,
-                                    cartoon: _cartoon,
                                   ),
                                 ),
                               ),
@@ -902,7 +882,6 @@ class _PuzzleView extends StatelessWidget {
   final ui.Image? image;
   final void Function(int tileArrayIndex) onTileTap;
   final List<ui.Image?>? slices;
-  final AnimationController cartoon;
   // fastMode حذف شد
   const _PuzzleView({
     required this.board,
@@ -910,7 +889,6 @@ class _PuzzleView extends StatelessWidget {
     required this.image,
     required this.onTileTap,
     required this.slices,
-    required this.cartoon,
   });
 
   @override
@@ -966,8 +944,7 @@ class _PuzzleView extends StatelessWidget {
           dimension: dimension,
           correctRow: correctRow,
           correctCol: correctCol,
-          showNumber: false,
-          index: tile.correctIndex,
+
           isCorrect: tile.inCorrectPlace,
           slice:
               slices != null && tile.correctIndex < (dimension * dimension - 1)
@@ -984,8 +961,6 @@ class _TileContent extends StatelessWidget {
   final int dimension;
   final int correctRow;
   final int correctCol;
-  final bool showNumber;
-  final int index;
   final bool isCorrect;
   final ui.Image? slice;
   // fastMode حذف شد
@@ -994,8 +969,6 @@ class _TileContent extends StatelessWidget {
     required this.dimension,
     required this.correctRow,
     required this.correctCol,
-    required this.showNumber,
-    required this.index,
     required this.isCorrect,
     required this.slice,
   });
