@@ -422,7 +422,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
               time: _formatTime(seconds),
               onReplay: () {
                 Navigator.pop(context);
-                _reset(shuffle: true);
+                _loadRandomAssetImage();
               },
             ),
           );
@@ -559,7 +559,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   onPickImage: _pickImage,
                   onShuffleIncorrect: () =>
                       setState(() => board.partialShuffleIncorrect(rng)),
-                  onReset: () => _reset(shuffle: true),
+                  onReset: () => _loadRandomAssetImage(),
                   onChangeDim: _changeDimension,
                   dimension: dimension,
                   darkMode: darkMode,
