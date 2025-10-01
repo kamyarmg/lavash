@@ -194,7 +194,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   int moves = 0;
   bool showNumbers = false;
   bool darkMode = false; // fastMode حذف شد
-  bool colorBlindMode = false; // حالت رنگ مناسب برای افراد کوررنگ
+  // حالت کوررنگی حذف شد
   bool _justSolved = false;
   late AnimationController _bgAnim;
   late AnimationController _solveParticles;
@@ -230,6 +230,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 2400),
     )..repeat();
+    // بارگذاری تصادفی یک تصویر از assets هنگام اولین اجرا
+    _loadRandomAssetImage();
   }
 
   @override
@@ -278,7 +280,41 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   // progress bar حذف شد
 
   void _toggleDark() => setState(() => darkMode = !darkMode);
-  void _toggleColorBlind() => setState(() => colorBlindMode = !colorBlindMode);
+  // حالت کوررنگی حذف شد
+
+  // لیست نام فایل‌های موجود در assets/images (در صورت افزودن تصویر جدید این آرایه را به‌روزرسانی کنید)
+  static const List<String> _assetImages = [
+    'assets/images/1.jpg',
+    'assets/images/2.jpg',
+    'assets/images/3.jpg',
+    'assets/images/4.jpg',
+    'assets/images/5.jpg',
+    'assets/images/6.jpg',
+    'assets/images/7.jpg',
+    'assets/images/8.jpg',
+    'assets/images/9.jpg',
+    'assets/images/10.jpg',
+    'assets/images/11.jpg',
+    'assets/images/12.jpg',
+    'assets/images/13.jpg',
+    'assets/images/14.jpg',
+  ];
+
+  Future<void> _loadRandomAssetImage() async {
+    try {
+      final pick = _assetImages[rng.nextInt(_assetImages.length)];
+      final data = await rootBundle.load(pick);
+      final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+      final frame = await codec.getNextFrame();
+      if (!mounted) return;
+      setState(() => image = frame.image);
+      _reset(shuffle: true);
+      _buildSlices();
+    } catch (e) {
+      // ignore: avoid_print
+      print('Random asset image load failed: $e');
+    }
+  }
   // حالت سریع حذف شد
 
   Future<void> _buildSlices() async {
@@ -479,22 +515,12 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                     onTileTap: _onTileTap,
                                     slices: _slices,
                                     cartoon: _cartoon,
-                                    colorBlindMode: colorBlindMode,
                                   ),
                                 ),
                               ),
                             ),
                             const SizedBox(height: 30),
-                            if (image == null)
-                              Text(
-                                'یک تصویر انتخاب کن تا شروع کنیم! یا با همین رنگ‌ها بازی کن.',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(
-                                      color: Colors.white.withOpacity(0.85),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                textAlign: TextAlign.center,
-                              ),
+                            // پیام قبلی و حالت بازی بدون تصویر حذف شد
                             if (_buildingCache)
                               Padding(
                                 padding: const EdgeInsets.only(top: 16.0),
@@ -542,8 +568,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   showNumbers: showNumbers,
                   darkMode: darkMode,
                   onToggleDark: _toggleDark,
-                  onToggleColorBlind: _toggleColorBlind,
-                  colorBlindMode: colorBlindMode,
                 ),
               ),
               // افکت حل شدن
@@ -698,7 +722,6 @@ class _PuzzleView extends StatelessWidget {
   final void Function(int tileArrayIndex) onTileTap;
   final List<ui.Image?>? slices;
   final AnimationController cartoon;
-  final bool colorBlindMode;
   // fastMode حذف شد
   const _PuzzleView({
     required this.board,
@@ -708,7 +731,6 @@ class _PuzzleView extends StatelessWidget {
     required this.onTileTap,
     required this.slices,
     required this.cartoon,
-    required this.colorBlindMode,
   });
 
   @override
@@ -718,28 +740,18 @@ class _PuzzleView extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final tileSize = constraints.maxWidth / dimension;
+          if (image == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
           return Stack(
             children: [
-              // زمینه
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withOpacity(0.15),
-                      Colors.white.withOpacity(0.05),
-                    ],
-                  ),
-                ),
-              ),
               for (int i = 0; i < board.tiles.length - 1; i++)
                 _buildTile(context, board.tiles[i], tileSize),
-              if (board.isSolved && image != null)
+              if (board.isSolved)
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Opacity(
-                      opacity: 0.15,
+                      opacity: 0.12,
                       child: CustomPaint(
                         painter: _ImagePainter(image!, dimension: 1),
                       ),
@@ -781,7 +793,6 @@ class _PuzzleView extends StatelessWidget {
               slices != null && tile.correctIndex < (dimension * dimension - 1)
               ? slices![tile.correctIndex]
               : null,
-          colorBlindMode: colorBlindMode,
         ),
       ),
     );
@@ -797,7 +808,6 @@ class _TileContent extends StatelessWidget {
   final int index;
   final bool isCorrect;
   final ui.Image? slice;
-  final bool colorBlindMode;
   // fastMode حذف شد
   const _TileContent({
     required this.image,
@@ -808,33 +818,10 @@ class _TileContent extends StatelessWidget {
     required this.index,
     required this.isCorrect,
     required this.slice,
-    required this.colorBlindMode,
   });
 
   @override
   Widget build(BuildContext context) {
-    // پالت پیش‌فرض پر انرژی کارتونی
-    const normalPalette = [
-      Color(0xFFFF5A5F), // Coral Red
-      Color(0xFFFFC038), // Warm Yellow
-      Color(0xFF58D66D), // Green
-      Color(0xFF34C3FF), // Sky Blue
-      Color(0xFF9B6BFF), // Purple
-      Color(0xFFFF78D5), // Pink
-      Color(0xFFFF914D), // Orange
-    ];
-    // پالت مناسب کوررنگی (Okabe-Ito) تا حد امکان متمایز و با کنتراست
-    const cbPalette = [
-      Color(0xFF0072B2), // Blue
-      Color(0xFFD55E00), // Vermillion
-      Color(0xFF009E73), // Green
-      Color(0xFFE69F00), // Orange
-      Color(0xFF56B4E9), // Sky Blue Light
-      Color(0xFFCC79A7), // Reddish purple
-      Color(0xFFF0E442), // Yellow
-    ];
-    final palette = colorBlindMode ? cbPalette : normalPalette;
-    final baseColor = palette[index % palette.length];
     final correctGlow = isCorrect
         ? [
             BoxShadow(
@@ -842,9 +829,9 @@ class _TileContent extends StatelessWidget {
               blurRadius: 18,
               spreadRadius: 1,
             ),
-            BoxShadow(
-              color: baseColor.withOpacity(0.9),
-              blurRadius: 38,
+            const BoxShadow(
+              color: Color(0xFFFF6EC7),
+              blurRadius: 32,
               spreadRadius: -2,
             ),
           ]
@@ -860,18 +847,11 @@ class _TileContent extends StatelessWidget {
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOutQuad,
       decoration: BoxDecoration(
-        gradient: image == null
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [baseColor, baseColor.withOpacity(0.65)],
-              )
-            : null,
-        color: image == null ? null : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isCorrect
-              ? baseColor.withOpacity(0.9)
+              ? const Color(0xFFFF6EC7).withOpacity(0.9)
               : Colors.white.withOpacity(0.45),
           width: isCorrect ? 2.2 : 1.2,
         ),
@@ -882,32 +862,24 @@ class _TileContent extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (image != null)
-              (slice != null
-                  ? FittedBox(
-                      fit: BoxFit.cover,
-                      child: RawImage(
-                        image: slice,
-                        filterQuality: FilterQuality.medium,
-                      ),
-                    )
-                  : CustomPaint(
-                      painter: _ImagePainter(
-                        image!,
-                        dimension: dimension,
-                        clipRow: correctRow,
-                        clipCol: correctCol,
-                      ),
-                    )),
-            // الگوی تمایز اضافی برای حالت کوررنگ (برای وقتی تصویر نیست)
-            if (colorBlindMode && image == null)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: CustomPaint(
-                    painter: _PatternPainter(patternIndex: index % 4),
-                  ),
-                ),
-              ),
+            (slice != null
+                ? FittedBox(
+                    fit: BoxFit.cover,
+                    child: RawImage(
+                      image: slice,
+                      filterQuality: FilterQuality.medium,
+                    ),
+                  )
+                : (image != null
+                      ? CustomPaint(
+                          painter: _ImagePainter(
+                            image!,
+                            dimension: dimension,
+                            clipRow: correctRow,
+                            clipCol: correctCol,
+                          ),
+                        )
+                      : const SizedBox.shrink())),
             if (showNumber)
               Align(
                 alignment: Alignment.bottomRight,
@@ -918,8 +890,7 @@ class _TileContent extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: (colorBlindMode ? Colors.black : Colors.black)
-                        .withOpacity(0.50),
+                    color: Colors.black.withOpacity(0.50),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -939,26 +910,7 @@ class _TileContent extends StatelessWidget {
                   ),
                 ),
               ),
-            if (isCorrect && image == null)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: AnimatedOpacity(
-                    opacity: isCorrect ? 1 : 0,
-                    duration: const Duration(milliseconds: 500),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(
-                          colors: [
-                            Colors.white.withOpacity(0.35),
-                            Colors.transparent,
-                          ],
-                          radius: 0.85,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            // افکت اختصاصی حالت بدون تصویر حذف شد
           ],
         ),
       ),
@@ -1008,63 +960,7 @@ class _ImagePainter extends CustomPainter {
   }
 }
 
-// الگوهای ساده برای تشخیص بیشتر در حالت کوررنگ (چهار طرح متناوب)
-class _PatternPainter extends CustomPainter {
-  final int patternIndex; // 0..3
-  const _PatternPainter({required this.patternIndex});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.18)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-    switch (patternIndex) {
-      case 0: // خطوط مورب ↘
-        for (double x = -size.height; x < size.width; x += 12) {
-          canvas.drawLine(
-            Offset(x, 0),
-            Offset(x + size.height, size.height),
-            paint,
-          );
-        }
-        break;
-      case 1: // شبکه نقطه‌ای
-        for (double y = 4; y < size.height; y += 14) {
-          for (double x = 4; x < size.width; x += 14) {
-            canvas.drawCircle(Offset(x, y), 2, paint);
-          }
-        }
-        break;
-      case 2: // امواج افقی
-        final path = Path();
-        final amplitude = 4.0;
-        final wavelength = 24.0;
-        for (double y = 0; y <= size.height; y += 14) {
-          path.reset();
-          path.moveTo(0, y);
-          for (double x = 0; x <= size.width; x += 4) {
-            final dy = sin((x / wavelength) * 2 * pi) * amplitude;
-            path.lineTo(x, y + dy);
-          }
-          canvas.drawPath(path, paint);
-        }
-        break;
-      case 3: // ضربدرهای کوچک
-        for (double y = 6; y < size.height; y += 16) {
-          for (double x = 6; x < size.width; x += 16) {
-            canvas.drawLine(Offset(x - 4, y - 4), Offset(x + 4, y + 4), paint);
-            canvas.drawLine(Offset(x - 4, y + 4), Offset(x + 4, y - 4), paint);
-          }
-        }
-        break;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _PatternPainter oldDelegate) =>
-      oldDelegate.patternIndex != patternIndex;
-}
+// کلاس _PatternPainter حذف شد (حالت کوررنگی)
 
 // ------------------------------------------------------------
 // Animated Gradient Background + Blobs
@@ -1238,8 +1134,6 @@ class _ActionBar extends StatelessWidget {
   final bool showNumbers;
   final bool darkMode;
   final VoidCallback onToggleDark;
-  final VoidCallback onToggleColorBlind;
-  final bool colorBlindMode;
   const _ActionBar({
     required this.onPickImage,
     required this.onShuffleIncorrect,
@@ -1250,8 +1144,6 @@ class _ActionBar extends StatelessWidget {
     required this.showNumbers,
     required this.darkMode,
     required this.onToggleDark,
-    required this.onToggleColorBlind,
-    required this.colorBlindMode,
   });
   @override
   Widget build(BuildContext context) {
@@ -1343,14 +1235,7 @@ class _ActionBar extends StatelessWidget {
                 tooltip: darkMode ? 'حالت روشن' : 'حالت تیره',
                 baseColor: const Color(0xFFFF78D5),
               ),
-              _CircularGlassButton(
-                icon: Icon(
-                  colorBlindMode ? Icons.visibility : Icons.visibility_outlined,
-                ),
-                onTap: onToggleColorBlind,
-                tooltip: colorBlindMode ? 'رنگ معمولی' : 'حالت مناسب کوررنگی',
-                baseColor: const Color(0xFF0072B2),
-              ),
+              // دکمه حالت کوررنگی حذف شد
             ],
           ),
         ),
