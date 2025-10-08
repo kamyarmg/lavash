@@ -921,36 +921,8 @@ class _FancyFrame extends StatelessWidget {
   const _FancyFrame({required this.child});
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 800),
-      curve: Curves.easeOutCubic,
-      // پدینگ قاب کمتر شد
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(40),
-        gradient: LinearGradient(
-          colors: [
-            Colors.white.withValues(alpha: 0.22),
-            Colors.white.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.35),
-          width: 1.4,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-        backgroundBlendMode: BlendMode.overlay,
-      ),
-      child: child,
-    );
+    // قاب کاملاً مخفی: بدون دکوراسیون و پدینگ
+    return child;
   }
 }
 
