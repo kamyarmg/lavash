@@ -600,6 +600,7 @@ class _AssetSlider extends StatefulWidget {
 class _AssetSliderState extends State<_AssetSlider> {
   final _controller = ScrollController();
   static const _thumbWidth = 96.0;
+  static const _thumbSelectedWidth = 176.0;
   static const _thumbMarginH = 6.0; // دو طرف هر آیتم
 
   List<String> get _allItems {
@@ -642,10 +643,16 @@ class _AssetSliderState extends State<_AssetSlider> {
     });
     if (index < 0) return;
 
-    // محاسبه عرض موثر هر آیتم (عرض + حاشیه‌های افقی دو طرف)
-    final perItem = _thumbWidth + (_thumbMarginH * 2);
+    // محاسبه آفست با توجه به عرض متفاوت آیتم انتخاب‌شده
+    double offsetBefore = 0;
+    for (int i = 0; i < index; i++) {
+      // تا قبل از ایندکس انتخاب‌شده، همگی غیرانتخابی‌اند
+      offsetBefore += _thumbWidth + (_thumbMarginH * 2);
+    }
+    final selItemWidth = _thumbSelectedWidth;
+    final selCenter = offsetBefore + selItemWidth / 2;
     final viewport = _controller.position.viewportDimension;
-    final targetCenterOffset = index * perItem + perItem / 2 - viewport / 2;
+    final targetCenterOffset = selCenter - viewport / 2;
     final maxScroll = _controller.position.maxScrollExtent;
     final clamped = targetCenterOffset.clamp(0, maxScroll);
     _controller.animateTo(
@@ -660,7 +667,7 @@ class _AssetSliderState extends State<_AssetSlider> {
     final theme = Theme.of(context);
     final items = _allItems;
     return SizedBox(
-      height: 90,
+      height: 160,
       child: ListView.builder(
         controller: _controller,
         scrollDirection: Axis.horizontal,
@@ -671,6 +678,8 @@ class _AssetSliderState extends State<_AssetSlider> {
           final isFile = rawPath.startsWith('FILE://');
           final displayPath = isFile ? rawPath.substring(7) : rawPath;
           final isSel = displayPath == widget.selected;
+          final baseWidth = isSel ? _thumbSelectedWidth : _thumbWidth;
+          final marginV = isSel ? 0.0 : 10.0;
           return _SliderThumb(
             index: i,
             path: displayPath,
@@ -678,6 +687,11 @@ class _AssetSliderState extends State<_AssetSlider> {
             onTap: () => widget.onSelect(displayPath),
             accent: theme.colorScheme.primary,
             isFile: isFile,
+            width: baseWidth,
+            margin: EdgeInsets.symmetric(
+              horizontal: _thumbMarginH,
+              vertical: marginV,
+            ),
           );
         },
       ),
@@ -692,6 +706,8 @@ class _SliderThumb extends StatefulWidget {
   final VoidCallback onTap;
   final Color accent;
   final bool isFile; // آیا تصویر فایل کاربر است
+  final double? width;
+  final EdgeInsetsGeometry? margin;
   const _SliderThumb({
     required this.index,
     required this.path,
@@ -699,6 +715,8 @@ class _SliderThumb extends StatefulWidget {
     required this.onTap,
     required this.accent,
     this.isFile = false,
+    this.width,
+    this.margin,
   });
   @override
   State<_SliderThumb> createState() => _SliderThumbState();
@@ -730,7 +748,8 @@ class _SliderThumbState extends State<_SliderThumb>
   @override
   Widget build(BuildContext context) {
     final sel = widget.selected;
-    final scale = sel ? 1.0 + 0.06 * (1 - _hover) : 0.90 + 0.07 * _hover;
+    // بزرگ‌نمایی واضح‌تر برای آیتم انتخاب‌شده
+    final scale = sel ? 1.10 + 0.04 * _hover : 0.88 + 0.06 * _hover;
     final borderGrad = sel
         ? LinearGradient(
             colors: [
@@ -750,8 +769,10 @@ class _SliderThumbState extends State<_SliderThumb>
             end: Alignment.bottomRight,
           );
     return Container(
-      width: 90,
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      width: widget.width ?? 96,
+      margin:
+          widget.margin ??
+          const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       child: MouseRegion(
         onEnter: (_) => _setHover(true),
         onExit: (_) => _setHover(false),
@@ -761,117 +782,135 @@ class _SliderThumbState extends State<_SliderThumb>
             scale: scale,
             duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutBack,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 380),
-              curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  if (sel)
-                    BoxShadow(
-                      color: const Color(0xFFFF6EC7).withOpacity(0.55),
-                      blurRadius: 22,
-                      offset: const Offset(0, 8),
-                    ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  // Outer gradient border
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      gradient: borderGrad,
-                    ),
-                    padding: const EdgeInsets.all(3),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          widget.isFile
-                              ? Image.file(File(widget.path), fit: BoxFit.cover)
-                              : Image.asset(widget.path, fit: BoxFit.cover),
-                          // Subtle parallax / shine overlay
-                          AnimatedBuilder(
-                            animation: _shine,
-                            builder: (_, __) {
-                              final t = _shine.value;
-                              return IgnorePointer(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment(-1 + 2 * t, -1),
-                                      end: Alignment(1 + 2 * t, 1),
-                                      colors: [
-                                        Colors.white.withOpacity(0.0),
-                                        Colors.white.withOpacity(
-                                          sel ? 0.18 : 0.07,
-                                        ),
-                                        Colors.white.withOpacity(0.0),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          // Dark overlay when not selected
-                          if (!sel)
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.black.withOpacity(0.25),
-                                    Colors.black.withOpacity(0.45),
-                                  ],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                              ),
-                            ),
-                          // Selection bottom glow & icon
-                          if (sel)
-                            Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Container(
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.transparent,
-                                      const Color(0xFF141414).withOpacity(0.65),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          if (sel)
-                            const Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Padding(
-                                padding: EdgeInsets.only(bottom: 6),
-                                child: Icon(
-                                  Icons.check_circle,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                              ),
-                            ),
-                          // شماره اسلاید حذف شد
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            child: _SquareAwareThumb(
+              square: !sel,
+              borderGrad: borderGrad,
+              shineAnim: _shine,
+              isSelected: sel,
+              isFile: widget.isFile,
+              path: widget.path,
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+// Internal reusable piece that can enforce square shape when needed
+class _SquareAwareThumb extends StatelessWidget {
+  final bool square;
+  final Gradient borderGrad;
+  final AnimationController shineAnim;
+  final bool isSelected;
+  final bool isFile;
+  final String path;
+  const _SquareAwareThumb({
+    required this.square,
+    required this.borderGrad,
+    required this.shineAnim,
+    required this.isSelected,
+    required this.isFile,
+    required this.path,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tile = AnimatedContainer(
+      duration: const Duration(milliseconds: 380),
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          if (isSelected)
+            BoxShadow(
+              color: const Color(0xFFFF6EC7).withOpacity(0.55),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
+            ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Outer gradient border
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: borderGrad,
+            ),
+            padding: const EdgeInsets.all(3),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  isFile
+                      ? Image.file(File(path), fit: BoxFit.cover)
+                      : Image.asset(path, fit: BoxFit.cover),
+                  // Subtle parallax / shine overlay
+                  AnimatedBuilder(
+                    animation: shineAnim,
+                    builder: (_, __) {
+                      final t = shineAnim.value;
+                      return IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment(-1 + 2 * t, -1),
+                              end: Alignment(1 + 2 * t, 1),
+                              colors: [
+                                Colors.white.withOpacity(0.0),
+                                Colors.white.withOpacity(
+                                  isSelected ? 0.18 : 0.07,
+                                ),
+                                Colors.white.withOpacity(0.0),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  // Dark overlay when not selected
+                  if (!isSelected)
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.black.withOpacity(0.25),
+                            Colors.black.withOpacity(0.45),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                  // Selection bottom glow
+                  if (isSelected)
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        height: 42,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              const Color(0xFF141414).withOpacity(0.65),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    return square ? AspectRatio(aspectRatio: 1, child: tile) : tile;
   }
 }
 
