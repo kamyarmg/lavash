@@ -468,6 +468,26 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                     child: Container(color: Colors.black.withOpacity(0.28)),
                   ),
                 ),
+              // عنوان رنگی در بالای صفحه، فقط وقتی نسبت ارتفاع برنامه به عرض آن > 1.5 باشد
+              if ((MediaQuery.of(context).size.height /
+                      MediaQuery.of(context).size.width) >
+                  1.5)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 5,
+                  child: SafeArea(
+                    bottom: false,
+                    child: IgnorePointer(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Center(
+                          child: _RainbowTitle(text: 'پازل کشویی لواش'),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               LayoutBuilder(
                 builder: (context, constraints) {
                   // فضای رزرو شده برای اسلایدر و نوار پایینی کمتر شد تا برد بزرگ‌تر شود
@@ -1142,6 +1162,71 @@ class _CoverImagePainter extends CustomPainter {
 // AnimatedBackground & _BlobPainter حذف شدند تا پس زمینه کاملا سفید باشد
 
 // عنوان گرادیانی حذف شد زیرا هدری در بالا نداریم
+
+// ------------------------------------------------------------
+// Rainbow Title (gradient text)
+// ------------------------------------------------------------
+class _RainbowTitle extends StatelessWidget {
+  final String text;
+  const _RainbowTitle({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = const [
+      Color(0xFFFF6EC7),
+      Color(0xFFFFD36E),
+      Color(0xFF72F1B8),
+      Color(0xFF00E5FF),
+      Color(0xFF9B6BFF),
+    ];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // پشت‌نویس محو برای خوانایی بهتر روی پس‌زمینه
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.vazirmatn(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
+              color: Colors.black.withOpacity(0.18),
+              shadows: [
+                Shadow(
+                  color: Colors.black.withOpacity(0.18),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+          ),
+          ShaderMask(
+            shaderCallback: (Rect bounds) {
+              return LinearGradient(
+                colors: colors,
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ).createShader(bounds);
+            },
+            blendMode: BlendMode.srcIn,
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.vazirmatn(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.2,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _CircularGlassButton extends StatelessWidget {
   final Widget icon;
