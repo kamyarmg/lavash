@@ -433,7 +433,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       textTheme: GoogleFonts.vazirmatnTextTheme(
         darkMode ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
       ),
-      scaffoldBackgroundColor: Colors.white,
+      scaffoldBackgroundColor: darkMode
+          ? const Color(0xFF0E0F12)
+          : Colors.white,
     );
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -445,8 +447,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
           extendBodyBehindAppBar: true,
           body: Stack(
             children: [
-              // پس زمینه گرادیان حذف شد؛ پس زمینه سفید ساده
-              Container(color: Colors.white),
+              // پسزمینه پایه: روشن در حالت عادی و تیرهتر در حالت تاریک
+              Container(
+                color: darkMode ? const Color(0xFF0E0F12) : Colors.white,
+              ),
               // پسزمینه: تصویر انتخابشده پازل به صورت خیلی ترنسپرنت و شفاف
               if (image != null)
                 Positioned.fill(
@@ -455,6 +459,13 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                       opacity: 0.15, // خیلی ترنسپرنت
                       child: CustomPaint(painter: _CoverImagePainter(image!)),
                     ),
+                  ),
+                ),
+              // اسکریم تیره ملایم فقط در حالت تاریک برای زیبایی و کنتراست بهتر
+              if (darkMode)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(color: Colors.black.withOpacity(0.28)),
                   ),
                 ),
               LayoutBuilder(
