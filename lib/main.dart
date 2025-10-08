@@ -447,6 +447,16 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
             children: [
               // پس زمینه گرادیان حذف شد؛ پس زمینه سفید ساده
               Container(color: Colors.white),
+              // پسزمینه: تصویر انتخابشده پازل به صورت خیلی ترنسپرنت و شفاف
+              if (image != null)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: 0.2, // خیلی ترنسپرنت
+                      child: CustomPaint(painter: _CoverImagePainter(image!)),
+                    ),
+                  ),
+                ),
               LayoutBuilder(
                 builder: (context, constraints) {
                   // فضای رزرو شده برای اسلایدر و نوار پایینی کمتر شد تا برد بزرگ‌تر شود
@@ -1078,6 +1088,39 @@ class _ImagePainter extends CustomPainter {
 }
 
 // کلاس _PatternPainter حذف شد (حالت کوررنگی)
+
+// ------------------------------------------------------------
+// Full-screen background cover painter (for transparent bg image)
+// ------------------------------------------------------------
+class _CoverImagePainter extends CustomPainter {
+  final ui.Image image;
+  _CoverImagePainter(this.image);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final imgW = image.width.toDouble();
+    final imgH = image.height.toDouble();
+    final dstW = size.width;
+    final dstH = size.height;
+    if (imgW == 0 || imgH == 0 || dstW == 0 || dstH == 0) return;
+
+    // BoxFit.cover
+    final scale = max(dstW / imgW, dstH / imgH);
+    final drawW = imgW * scale;
+    final drawH = imgH * scale;
+    final dx = (dstW - drawW) / 2;
+    final dy = (dstH - drawH) / 2;
+
+    final src = Rect.fromLTWH(0, 0, imgW, imgH);
+    final dst = Rect.fromLTWH(dx, dy, drawW, drawH);
+    final paint = Paint();
+    canvas.drawImageRect(image, src, dst, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CoverImagePainter oldDelegate) =>
+      oldDelegate.image != image;
+}
 
 // ------------------------------------------------------------
 // Animated Gradient Background + Blobs
