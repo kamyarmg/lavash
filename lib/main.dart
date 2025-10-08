@@ -226,8 +226,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
 
   Future<void> _loadRecords() async {
     final sp = await SharedPreferences.getInstance();
-    bestMoves = sp.getInt('best_moves_${dimension}');
-    bestTime = sp.getInt('best_time_${dimension}');
+    bestMoves = sp.getInt('best_moves_$dimension');
+    bestTime = sp.getInt('best_time_$dimension');
     if (mounted) setState(() {});
   }
 
@@ -236,12 +236,12 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     bool changed = false;
     if (bestMoves == null || moves < bestMoves!) {
       bestMoves = moves;
-      await sp.setInt('best_moves_${dimension}', moves);
+      await sp.setInt('best_moves_$dimension', moves);
       changed = true;
     }
     if (bestTime == null || seconds < bestTime!) {
       bestTime = seconds;
-      await sp.setInt('best_time_${dimension}', seconds);
+      await sp.setInt('best_time_$dimension', seconds);
       changed = true;
     }
     if (changed && mounted) setState(() {});
@@ -449,13 +449,15 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
               Container(color: Colors.white),
               LayoutBuilder(
                 builder: (context, constraints) {
+                  // فضای رزرو شده برای اسلایدر و نوار پایینی کمتر شد تا برد بزرگ‌تر شود
                   final maxBoard = min(
                     constraints.maxWidth,
-                    constraints.maxHeight - 260,
-                  ).clamp(240.0, 560.0);
+                    constraints.maxHeight - 200,
+                  ).clamp(240.0, 720.0);
                   return Center(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+                      // حاشیه‌های عمودی و افقی کمتر شد
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
                       child: SafeArea(
                         top: true,
                         bottom: false,
@@ -475,7 +477,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                   onSelect: (p) => _loadAssetImage(p),
                                 ),
                               ),
-                              const SizedBox(height: 18),
+                              const SizedBox(height: 10),
                               Hero(
                                 tag: 'board',
                                 child: _FancyFrame(
@@ -617,11 +619,11 @@ class _AssetSliderState extends State<_AssetSlider> {
     final theme = Theme.of(context);
     final items = _allItems;
     return SizedBox(
-      height: 110,
+      height: 90,
       child: ListView.builder(
         controller: _controller,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 0),
         itemCount: items.length,
         itemBuilder: (c, i) {
           final rawPath = items[i];
@@ -707,8 +709,8 @@ class _SliderThumbState extends State<_SliderThumb>
             end: Alignment.bottomRight,
           );
     return Container(
-      width: 96,
-      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      width: 90,
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: MouseRegion(
         onEnter: (_) => _setHover(true),
         onExit: (_) => _setHover(false),
@@ -840,7 +842,8 @@ class _FancyFrame extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 800),
       curve: Curves.easeOutCubic,
-      padding: const EdgeInsets.all(20),
+      // پدینگ قاب کمتر شد
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(40),
         gradient: LinearGradient(
@@ -991,7 +994,7 @@ class _TileContent extends StatelessWidget {
       curve: Curves.easeOutQuad,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isCorrect
               ? const Color(0xFFFF6EC7).withOpacity(0.9)
@@ -1001,7 +1004,7 @@ class _TileContent extends StatelessWidget {
         boxShadow: correctGlow,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1172,12 +1175,12 @@ class _ActionBar extends StatelessWidget {
     // در حال حاضر عمداً از SafeArea صرفنظر شده تا کاملاً به لبه بچسبد. در صورت نیاز:
     // return SafeArea(top: false, child: ...)
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
       child: Center(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(40),
+            borderRadius: BorderRadius.circular(28),
             gradient: LinearGradient(
               colors: [
                 Colors.white.withOpacity(0.45),
@@ -1200,8 +1203,8 @@ class _ActionBar extends StatelessWidget {
           ),
           child: Wrap(
             alignment: WrapAlignment.center,
-            spacing: 12,
-            runSpacing: 10,
+            spacing: 10,
+            runSpacing: 8,
             children: [
               _CircularGlassButton(
                 icon: const Icon(Icons.image_outlined),
