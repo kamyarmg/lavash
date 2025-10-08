@@ -465,7 +465,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
               if (darkMode)
                 Positioned.fill(
                   child: IgnorePointer(
-                    child: Container(color: Colors.black.withOpacity(0.28)),
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.28),
+                    ),
                   ),
                 ),
               // عنوان رنگی در بالای صفحه، فقط وقتی نسبت ارتفاع برنامه به عرض آن > 1.5 باشد
@@ -762,8 +764,8 @@ class _SliderThumbState extends State<_SliderThumb>
           )
         : LinearGradient(
             colors: [
-              Colors.white.withOpacity(0.28),
-              Colors.white.withOpacity(0.10),
+              Colors.white.withValues(alpha: 0.28),
+              Colors.white.withValues(alpha: 0.10),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -824,7 +826,7 @@ class _SquareAwareThumb extends StatelessWidget {
         boxShadow: [
           if (isSelected)
             BoxShadow(
-              color: const Color(0xFFFF6EC7).withOpacity(0.55),
+              color: const Color(0xFFFF6EC7).withValues(alpha: 0.55),
               blurRadius: 22,
               offset: const Offset(0, 8),
             ),
@@ -859,11 +861,11 @@ class _SquareAwareThumb extends StatelessWidget {
                               begin: Alignment(-1 + 2 * t, -1),
                               end: Alignment(1 + 2 * t, 1),
                               colors: [
-                                Colors.white.withOpacity(0.0),
-                                Colors.white.withOpacity(
-                                  isSelected ? 0.18 : 0.07,
+                                Colors.white.withValues(alpha: 0.0),
+                                Colors.white.withValues(
+                                  alpha: isSelected ? 0.18 : 0.07,
                                 ),
-                                Colors.white.withOpacity(0.0),
+                                Colors.white.withValues(alpha: 0.0),
                               ],
                             ),
                           ),
@@ -877,8 +879,8 @@ class _SquareAwareThumb extends StatelessWidget {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Colors.black.withOpacity(0.25),
-                            Colors.black.withOpacity(0.45),
+                            Colors.black.withValues(alpha: 0.25),
+                            Colors.black.withValues(alpha: 0.45),
                           ],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
@@ -897,7 +899,7 @@ class _SquareAwareThumb extends StatelessWidget {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              const Color(0xFF141414).withOpacity(0.65),
+                              const Color(0xFF141414).withValues(alpha: 0.65),
                             ],
                           ),
                         ),
@@ -928,16 +930,19 @@ class _FancyFrame extends StatelessWidget {
         borderRadius: BorderRadius.circular(40),
         gradient: LinearGradient(
           colors: [
-            Colors.white.withOpacity(0.22),
-            Colors.white.withOpacity(0.05),
+            Colors.white.withValues(alpha: 0.22),
+            Colors.white.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: Colors.white.withOpacity(0.35), width: 1.4),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.35),
+          width: 1.4,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.18),
+            color: Colors.black.withValues(alpha: 0.18),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
@@ -1053,7 +1058,7 @@ class _TileContent extends StatelessWidget {
     final correctGlow = isCorrect
         ? [
             BoxShadow(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               blurRadius: 18,
               spreadRadius: 1,
             ),
@@ -1066,7 +1071,7 @@ class _TileContent extends StatelessWidget {
         : [
             // سایه تیره تایل‌ها نرم‌تر و کم‌عمق‌تر شد
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1080,8 +1085,8 @@ class _TileContent extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isCorrect
-              ? const Color(0xFFFF6EC7).withOpacity(0.9)
-              : Colors.white.withOpacity(0.45),
+              ? const Color(0xFFFF6EC7).withValues(alpha: 0.9)
+              : Colors.white.withValues(alpha: 0.45),
           width: isCorrect ? 2.2 : 1.2,
         ),
         boxShadow: correctGlow,
@@ -1231,10 +1236,10 @@ class _RainbowTitle extends StatelessWidget {
               fontSize: 22,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.2,
-              color: Colors.black.withOpacity(0.18),
+              color: Colors.black.withValues(alpha: 0.18),
               shadows: [
                 Shadow(
-                  color: Colors.black.withOpacity(0.18),
+                  color: Colors.black.withValues(alpha: 0.18),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -1281,8 +1286,8 @@ class _CircularGlassButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = baseColor ?? (Theme.of(context).colorScheme.primary);
-    final bright = c.withOpacity(0.95);
-    final soft = c.withOpacity(0.55);
+    final bright = c.withValues(alpha: 0.95);
+    final soft = c.withValues(alpha: 0.55);
     final btn = InkWell(
       onTap: onTap,
       customBorder: const CircleBorder(),
@@ -1297,15 +1302,18 @@ class _CircularGlassButton extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.6),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.85),
+            width: 1.6,
+          ),
           boxShadow: [
             BoxShadow(
-              color: c.withOpacity(0.55),
+              color: c.withValues(alpha: 0.55),
               blurRadius: 18,
               offset: const Offset(0, 6),
             ),
             BoxShadow(
-              color: Colors.white.withOpacity(0.65),
+              color: Colors.white.withValues(alpha: 0.65),
               blurRadius: 10,
               spreadRadius: -4,
             ),
@@ -1364,19 +1372,19 @@ class _ActionBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(28),
             gradient: LinearGradient(
               colors: [
-                Colors.white.withOpacity(0.45),
-                Colors.white.withOpacity(0.18),
+                Colors.white.withValues(alpha: 0.45),
+                Colors.white.withValues(alpha: 0.18),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             border: Border.all(
-              color: Colors.white.withOpacity(0.35),
+              color: Colors.white.withValues(alpha: 0.35),
               width: 1.3,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.40),
+                color: Colors.black.withValues(alpha: 0.40),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
@@ -1494,7 +1502,7 @@ class _WinDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.white.withOpacity(0.10),
+      backgroundColor: Colors.white.withValues(alpha: 0.10),
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
       child: Container(
@@ -1503,16 +1511,19 @@ class _WinDialog extends StatelessWidget {
           borderRadius: BorderRadius.circular(32),
           gradient: LinearGradient(
             colors: [
-              Colors.white.withOpacity(0.40),
-              Colors.white.withOpacity(0.16),
+              Colors.white.withValues(alpha: 0.40),
+              Colors.white.withValues(alpha: 0.16),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          border: Border.all(color: Colors.white.withOpacity(0.65), width: 1.3),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.65),
+            width: 1.3,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.45),
+              color: Colors.black.withValues(alpha: 0.45),
               blurRadius: 30,
               offset: const Offset(0, 14),
             ),
@@ -1591,7 +1602,7 @@ class ParticleBurstPainter extends CustomPainter {
           const Color(0xFFFF6EC7),
           const Color(0xFF00E5FF),
           (i / count),
-        )!.withOpacity(1 - progress);
+        )!.withValues(alpha: 1 - progress);
       canvas.drawCircle(pos, sizeP, paint);
     }
   }
