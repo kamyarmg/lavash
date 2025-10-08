@@ -443,20 +443,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         child: Scaffold(
           extendBody: true,
           extendBodyBehindAppBar: true,
-          appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(72),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18.0,
-                  vertical: 6,
-                ),
-                child: Center(
-                  child: _GradientTitle(text: 'پازل کشویی لواش 🧩'),
-                ),
-              ),
-            ),
-          ),
           body: Stack(
             children: [
               // پس زمینه گرادیان حذف شد؛ پس زمینه سفید ساده
@@ -469,42 +455,46 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   ).clamp(240.0, 560.0);
                   return Center(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 110, 20, 120),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 860),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // باکس های بالایی (زمان، حرکت، رکورد..) بنا به درخواست حذف شدند
-                            // اسلایدر با همان عرض برد (فقط تصاویر assets فعلی)
-                            SizedBox(
-                              width: maxBoard,
-                              child: _AssetSlider(
-                                assets: _assetImages,
-                                userPath: pickedFile?.path,
-                                selected: _selectedAssetPath,
-                                onSelect: (p) => _loadAssetImage(p),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+                      child: SafeArea(
+                        top: true,
+                        bottom: false,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 860),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // باکس های بالایی (زمان، حرکت، رکورد..) بنا به درخواست حذف شدند
+                              // اسلایدر با همان عرض برد (فقط تصاویر assets فعلی)
+                              SizedBox(
+                                width: maxBoard,
+                                child: _AssetSlider(
+                                  assets: _assetImages,
+                                  userPath: pickedFile?.path,
+                                  selected: _selectedAssetPath,
+                                  onSelect: (p) => _loadAssetImage(p),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 18),
-                            Hero(
-                              tag: 'board',
-                              child: _FancyFrame(
-                                child: SizedBox(
-                                  width: maxBoard,
-                                  height: maxBoard,
-                                  child: _PuzzleView(
-                                    board: board,
-                                    dimension: dimension,
-                                    image: image,
-                                    onTileTap: _onTileTap,
-                                    slices: _slices,
+                              const SizedBox(height: 18),
+                              Hero(
+                                tag: 'board',
+                                child: _FancyFrame(
+                                  child: SizedBox(
+                                    width: maxBoard,
+                                    height: maxBoard,
+                                    child: _PuzzleView(
+                                      board: board,
+                                      dimension: dimension,
+                                      image: image,
+                                      onTileTap: _onTileTap,
+                                      slices: _slices,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 30),
-                          ],
+                              const SizedBox(height: 30),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1091,27 +1081,7 @@ class _ImagePainter extends CustomPainter {
 // ------------------------------------------------------------
 // AnimatedBackground & _BlobPainter حذف شدند تا پس زمینه کاملا سفید باشد
 
-// ------------------------------------------------------------
-// Gradient Title
-// ------------------------------------------------------------
-class _GradientTitle extends StatelessWidget {
-  final String text;
-  const _GradientTitle({required this.text});
-  @override
-  Widget build(BuildContext context) {
-    final style = GoogleFonts.vazirmatn(
-      fontSize: 28,
-      fontWeight: FontWeight.w800,
-      letterSpacing: -0.5,
-    );
-    return ShaderMask(
-      shaderCallback: (rect) => const LinearGradient(
-        colors: [Color(0xFFFFB6F2), Color(0xFF72F1B8), Color(0xFF00E5FF)],
-      ).createShader(rect),
-      child: Text(text, style: style.copyWith(color: Colors.white)),
-    );
-  }
-}
+// عنوان گرادیانی حذف شد زیرا هدری در بالا نداریم
 
 class _CircularGlassButton extends StatelessWidget {
   final Widget icon;
