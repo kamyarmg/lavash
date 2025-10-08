@@ -1299,11 +1299,13 @@ class _ActionBar extends StatelessWidget {
                       ),
                     )
                     .toList(),
-                child: _CircularGlassButton(
-                  icon: const Icon(Icons.grid_on),
-                  onTap: () {},
-                  tooltip: 'ابعاد',
-                  baseColor: const Color(0xFF58D66D),
+                child: IgnorePointer(
+                  child: _CircularGlassButton(
+                    icon: const Icon(Icons.grid_on),
+                    onTap: () {},
+                    tooltip: 'ابعاد',
+                    baseColor: const Color(0xFF58D66D),
+                  ),
                 ),
               ),
               _CircularGlassButton(
