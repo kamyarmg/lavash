@@ -452,7 +452,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Opacity(
-                      opacity: 0.2, // خیلی ترنسپرنت
+                      opacity: 0.15, // خیلی ترنسپرنت
                       child: CustomPaint(painter: _CoverImagePainter(image!)),
                     ),
                   ),
@@ -867,9 +867,9 @@ class _FancyFrame extends StatelessWidget {
         border: Border.all(color: Colors.white.withOpacity(0.35), width: 1.4),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 25,
-            offset: const Offset(0, 12),
+            color: Colors.black.withOpacity(0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
         ],
         backgroundBlendMode: BlendMode.overlay,
@@ -906,6 +906,8 @@ class _PuzzleView extends StatelessWidget {
           }
           return Stack(
             children: [
+              // پس‌زمینه روشن داخل برد برای سفیدتر و درخشان‌تر شدن پشت تایل‌ها
+              Positioned.fill(child: Container(color: Colors.transparent)),
               for (int i = 0; i < board.tiles.length - 1; i++)
                 _buildTile(context, board.tiles[i], tileSize),
               if (board.isSolved)
@@ -992,10 +994,11 @@ class _TileContent extends StatelessWidget {
             ),
           ]
         : [
+            // سایه تیره تایل‌ها نرم‌تر و کم‌عمق‌تر شد
             BoxShadow(
-              color: Colors.black.withOpacity(0.25),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              color: Colors.black.withOpacity(0.12),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ];
 
