@@ -669,7 +669,7 @@ class _AssetSliderState extends State<_AssetSlider> {
     final theme = Theme.of(context);
     final items = _allItems;
     return SizedBox(
-      height: 160,
+      height: 200,
       child: ListView.builder(
         controller: _controller,
         scrollDirection: Axis.horizontal,
@@ -681,7 +681,7 @@ class _AssetSliderState extends State<_AssetSlider> {
           final displayPath = isFile ? rawPath.substring(7) : rawPath;
           final isSel = displayPath == widget.selected;
           final baseWidth = isSel ? _thumbSelectedWidth : _thumbWidth;
-          final marginV = isSel ? 0.0 : 10.0;
+          final marginV = isSel ? 10.0 : 10.0;
           return _SliderThumb(
             index: i,
             path: displayPath,
