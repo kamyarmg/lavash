@@ -1082,7 +1082,7 @@ class _TileContent extends StatelessWidget {
       curve: Curves.easeOutQuad,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isCorrect
               ? const Color(0xFFFF6EC7).withValues(alpha: 0.9)
@@ -1092,7 +1092,7 @@ class _TileContent extends StatelessWidget {
         boxShadow: correctGlow,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         child: Stack(
           fit: StackFit.expand,
           children: [
