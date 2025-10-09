@@ -1420,7 +1420,7 @@ class _RainbowTitle extends StatelessWidget {
             text,
             textAlign: TextAlign.center,
             style: GoogleFonts.vazirmatn(
-              fontSize: 22,
+              fontSize: 28,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.2,
               color: Colors.black.withValues(alpha: 0.18),
@@ -1446,7 +1446,7 @@ class _RainbowTitle extends StatelessWidget {
               text,
               textAlign: TextAlign.center,
               style: GoogleFonts.vazirmatn(
-                fontSize: 22,
+                fontSize: 28,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 0.2,
                 color: Colors.white,
