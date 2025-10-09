@@ -160,6 +160,22 @@ class PuzzleBoard {
   }
 }
 
+// وضعیت ذخیره‌شده بازی برای رزومه
+class _SavedGame {
+  final int dim;
+  final List<int> tileCurrents; // طول = dim*dim (برای هر correctIndex)
+  final int moves;
+  final int seconds;
+  final bool solved;
+  const _SavedGame({
+    required this.dim,
+    required this.tileCurrents,
+    required this.moves,
+    required this.seconds,
+    required this.solved,
+  });
+}
+
 class MainApp extends StatefulWidget {
   const MainApp({super.key});
 
@@ -198,6 +214,13 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   static const String _kPrefDim = 'settings.dimension';
   static const String _kPrefLastImage =
       'settings.lastImage'; // مقادیر: 'FILE://path' یا مسیر asset
+  // کلیدهای ذخیره وضعیت بازی
+  static const String _kGameDim = 'game.dimension';
+  static const String _kGameTiles =
+      'game.tiles'; // CSV از currentIndex ها برای هر correctIndex
+  static const String _kGameMoves = 'game.moves';
+  static const String _kGameSeconds = 'game.seconds';
+  static const String _kGameSolved = 'game.solved';
 
   @override
   void initState() {
@@ -219,13 +242,15 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void _startTimer() {
+  void _startTimer({bool resetSeconds = true}) {
     _timer?.cancel();
-    seconds = 0;
+    if (resetSeconds) seconds = 0;
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       if (board.isSolved) return;
       setState(() => seconds++);
+      // ذخیره وضعیت هر ثانیه تا در صورت خروج، ادامه دهد
+      _saveGameState(solved: false);
     });
   }
 
@@ -289,7 +314,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _loadAssetImage(String path) async {
+  Future<void> _loadAssetImage(String path, {bool forResume = false}) async {
     try {
       final data = await rootBundle.load(path);
       final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
@@ -302,8 +327,15 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       // ذخیره آخرین تصویر انتخاب‌شده (asset)
       final sp = await SharedPreferences.getInstance();
       await sp.setString(_kPrefLastImage, path);
-      _reset(shuffle: true);
-      _buildSlices();
+      if (forResume) {
+        // فقط اسلایس ها را بساز؛ بورد را دست نزن
+        await _buildSlices();
+      } else {
+        // تغییر تصویر = شروع بازی جدید
+        await _clearGameState();
+        _reset(shuffle: true);
+        _buildSlices();
+      }
     } catch (e) {
       // ignore: avoid_print
       print('Asset image load failed: $e');
@@ -364,6 +396,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       final sp = await SharedPreferences.getInstance();
       await sp.setString(_kPrefLastImage, 'FILE://${pickedFile!.path}');
       // سپس بورد ریست می‌شود (خارج از همان setState برای جلوگیری از مشکلات رندر)
+      _clearGameState();
       _reset(shuffle: true);
       _buildSlices();
       // لاگ ساده برای اطمینان
@@ -389,6 +422,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     _slices = null;
     setState(() {});
     if (image != null) _buildSlices();
+    // شروع جدید => وضعیت قبلی پاک شود
+    _clearGameState();
   }
 
   void _changeDimension(int d) {
@@ -405,9 +440,13 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     if (moved) {
       moves++;
       setState(() {});
+      // ذخیره پس از هر حرکت
+      _saveGameState();
       if (board.isSolved) {
         _timer?.cancel();
         _saveRecordIfBetter();
+        // علامت‌گذاری به عنوان حل شده تا در اجرای بعدی رزومه نشود
+        _saveGameState(solved: true);
         _justSolved = true;
         _solveParticles.forward(from: 0);
         HapticFeedback.mediumImpact();
@@ -439,7 +478,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 
   // بارگذاری تصویر از روی فایل (برای حالت ادامه از تنظیمات)
-  Future<void> _loadFileImage(String filePath) async {
+  Future<void> _loadFileImage(String filePath, {bool forResume = false}) async {
+    await Future<void>.delayed(Duration.zero); // تضمین async
     try {
       final f = File(filePath);
       if (!await f.exists()) {
@@ -456,8 +496,15 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         _selectedAssetPath = filePath;
         pickedFile = XFile(filePath);
       });
-      _reset(shuffle: true);
-      _buildSlices();
+      if (forResume) {
+        // فقط اسلایس ها را بساز؛ بورد را دست نزن
+        await _buildSlices();
+      } else {
+        // تغییر تصویر = شروع بازی جدید (در حالت رزومه بعدا بورد از save پر می‌شود)
+        await _clearGameState();
+        _reset(shuffle: true);
+        _buildSlices();
+      }
       // ذخیره نیز به همان صورت باقی می‌ماند
       final sp = await SharedPreferences.getInstance();
       await sp.setString(_kPrefLastImage, 'FILE://$filePath');
@@ -473,29 +520,120 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     final savedDark = sp.getBool(_kPrefDark);
     final savedDim = sp.getInt(_kPrefDim);
     final savedImage = sp.getString(_kPrefLastImage);
+    // خواندن وضعیت بازی
+    final savedGame = await _readSavedGame();
 
     if (savedDark != null) darkMode = savedDark;
-    if (savedDim != null && savedDim >= 3 && savedDim <= 8) {
+    // اگر بازی ذخیره شده معتبر داریم، بعد را از همان بگیریم
+    if (savedGame != null && !savedGame.solved) {
+      dimension = savedGame.dim;
+    } else if (savedDim != null && savedDim >= 3 && savedDim <= 8) {
       dimension = savedDim;
     }
-    // بازسازی بورد بر اساس بعد ذخیره‌شده
-    board = PuzzleBoard.solved(dimension).shuffled(rng);
+    // در این مرحله هنوز بورد را شافل نمی‌کنیم تا بتوانیم رزومه کنیم
     if (mounted) setState(() {});
     _loadRecords();
-
-    // بارگذاری آخرین تصویر انتخاب‌شده
+    // ابتدا تصویر را بارگذاری می‌کنیم
+    final bool resumePlanned = savedGame != null && !savedGame.solved;
     if (savedImage != null) {
       if (savedImage.startsWith('FILE://')) {
         final path = savedImage.substring(7);
-        await _loadFileImage(path);
-        return;
+        await _loadFileImage(path, forResume: resumePlanned);
       } else if (_assetImages.contains(savedImage)) {
-        await _loadAssetImage(savedImage);
-        return;
+        await _loadAssetImage(savedImage, forResume: resumePlanned);
+      } else {
+        await _loadRandomAssetImage();
       }
+    } else {
+      await _loadRandomAssetImage();
     }
-    // در غیر اینصورت یک تصویر تصادفی
-    await _loadRandomAssetImage();
+
+    // اگر وضعیت بازی ذخیره شده و حل نشده داریم، مستقیم رزومه کن
+    if (resumePlanned) {
+      _applySavedGame(savedGame);
+      _startTimer(resetSeconds: false);
+    } else {
+      // اگر بازی قبلی حل شده بود یا نبود، یک بازی جدید داشته باشیم
+      _reset(shuffle: true);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // Game-state persistence helpers
+  // ------------------------------------------------------------
+  Future<void> _saveGameState({bool? solved}) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final dim = dimension;
+      final total = dim * dim;
+      final indices = List<int>.generate(
+        total,
+        (i) => board.tiles[i].currentIndex,
+      );
+      final csv = indices.join(',');
+      await sp.setInt(_kGameDim, dim);
+      await sp.setString(_kGameTiles, csv);
+      await sp.setInt(_kGameMoves, moves);
+      await sp.setInt(_kGameSeconds, seconds);
+      await sp.setBool(_kGameSolved, solved ?? false);
+    } catch (_) {}
+  }
+
+  Future<void> _clearGameState() async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.remove(_kGameDim);
+    await sp.remove(_kGameTiles);
+    await sp.remove(_kGameMoves);
+    await sp.remove(_kGameSeconds);
+    await sp.remove(_kGameSolved);
+  }
+
+  Future<_SavedGame?> _readSavedGame() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final dim = sp.getInt(_kGameDim);
+      final csv = sp.getString(_kGameTiles);
+      final mv = sp.getInt(_kGameMoves);
+      final sec = sp.getInt(_kGameSeconds);
+      final solved = sp.getBool(_kGameSolved) ?? false;
+      if (dim == null || csv == null || mv == null || sec == null) return null;
+      final parts = csv.split(',');
+      if (parts.length != dim * dim) return null;
+      final indices = <int>[];
+      for (final p in parts) {
+        final v = int.tryParse(p);
+        if (v == null) return null;
+        indices.add(v);
+      }
+      final total = dim * dim;
+      final setAll = indices.toSet();
+      if (indices.any((e) => e < 0 || e >= total)) return null;
+      if (setAll.length != indices.length) return null;
+      return _SavedGame(
+        dim: dim,
+        tileCurrents: indices,
+        moves: mv,
+        seconds: sec,
+        solved: solved,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _applySavedGame(_SavedGame sg) {
+    dimension = sg.dim;
+    final newBoard = PuzzleBoard.solved(dimension);
+    for (int i = 0; i < newBoard.tiles.length; i++) {
+      newBoard.tiles[i].currentIndex = sg.tileCurrents[i];
+    }
+    board = newBoard;
+    moves = sg.moves;
+    seconds = sg.seconds;
+    _justSolved = false;
+    _slices = null;
+    setState(() {});
+    if (image != null) _buildSlices();
   }
 
   @override
@@ -533,7 +671,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Opacity(
-                      opacity: 0.15, // خیلی ترنسپرنت
+                      opacity: 0.2, // خیلی ترنسپرنت
                       child: CustomPaint(painter: _CoverImagePainter(image!)),
                     ),
                   ),
