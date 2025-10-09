@@ -193,18 +193,23 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
 
   // کش برش‌ها
   List<ui.Image?>? _slices; // طول = tiles.length -1
+  // کلیدهای ذخیره تنظیمات کاربر
+  static const String _kPrefDark = 'settings.darkMode';
+  static const String _kPrefDim = 'settings.dimension';
+  static const String _kPrefLastImage =
+      'settings.lastImage'; // مقادیر: 'FILE://path' یا مسیر asset
 
   @override
   void initState() {
     super.initState();
     board = PuzzleBoard.solved(dimension).shuffled(rng);
-    _loadRecords();
+    // ابتدا تنظیمات ذخیره‌شده را می‌خوانیم؛ شامل مود تیره، ابعاد، و آخرین تصویر
+    _loadSettings();
     _solveParticles = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     );
-    // بارگذاری تصادفی یک تصویر از assets هنگام اولین اجرا
-    _loadRandomAssetImage();
+    // اگر تنظیمات تصویری نیامد، بعداً در _loadSettings تصویر تصادفی بارگذاری می‌شود
   }
 
   @override
@@ -249,7 +254,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
 
   // progress bar حذف شد
 
-  void _toggleDark() => setState(() => darkMode = !darkMode);
+  void _toggleDark() async {
+    setState(() => darkMode = !darkMode);
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_kPrefDark, darkMode);
+  }
   // حالت کوررنگی حذف شد
 
   // لیست نام فایل‌های موجود در assets/images (در صورت افزودن تصویر جدید این آرایه را به‌روزرسانی کنید)
@@ -290,6 +299,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         _selectedAssetPath = path;
         image = frame.image;
       });
+      // ذخیره آخرین تصویر انتخاب‌شده (asset)
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(_kPrefLastImage, path);
       _reset(shuffle: true);
       _buildSlices();
     } catch (e) {
@@ -348,6 +360,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         // مسیر انتخاب شده را به عنوان selected نگه می‌داریم تا در اسلایدر سنتر شود
         _selectedAssetPath = pickedFile!.path;
       });
+      // ذخیره آخرین تصویر انتخاب‌شده (فایل کاربر)
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(_kPrefLastImage, 'FILE://${pickedFile!.path}');
       // سپس بورد ریست می‌شود (خارج از همان setState برای جلوگیری از مشکلات رندر)
       _reset(shuffle: true);
       _buildSlices();
@@ -380,6 +395,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     dimension = d;
     _reset(shuffle: true);
     _loadRecords();
+    // ذخیره ابعاد انتخاب‌شده
+    SharedPreferences.getInstance().then((sp) => sp.setInt(_kPrefDim, d));
   }
 
   void _onTileTap(int tileArrayIndex) {
@@ -419,6 +436,66 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     final result =
         '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
     return _toFaDigits(result);
+  }
+
+  // بارگذاری تصویر از روی فایل (برای حالت ادامه از تنظیمات)
+  Future<void> _loadFileImage(String filePath) async {
+    try {
+      final f = File(filePath);
+      if (!await f.exists()) {
+        // اگر فایل پیدا نشد، تصویر تصادفی asset بارگذاری شود
+        await _loadRandomAssetImage();
+        return;
+      }
+      final data = await f.readAsBytes();
+      final codec = await ui.instantiateImageCodec(data);
+      final frame = await codec.getNextFrame();
+      if (!mounted) return;
+      setState(() {
+        image = frame.image;
+        _selectedAssetPath = filePath;
+        pickedFile = XFile(filePath);
+      });
+      _reset(shuffle: true);
+      _buildSlices();
+      // ذخیره نیز به همان صورت باقی می‌ماند
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(_kPrefLastImage, 'FILE://$filePath');
+    } catch (e) {
+      // اگر مشکلی پیش آمد، fallback
+      await _loadRandomAssetImage();
+    }
+  }
+
+  // خواندن و اعمال تنظیمات ذخیره‌شده (مود تیره، ابعاد، آخرین تصویر)
+  Future<void> _loadSettings() async {
+    final sp = await SharedPreferences.getInstance();
+    final savedDark = sp.getBool(_kPrefDark);
+    final savedDim = sp.getInt(_kPrefDim);
+    final savedImage = sp.getString(_kPrefLastImage);
+
+    if (savedDark != null) darkMode = savedDark;
+    if (savedDim != null && savedDim >= 3 && savedDim <= 8) {
+      dimension = savedDim;
+    }
+    // بازسازی بورد بر اساس بعد ذخیره‌شده
+    board = PuzzleBoard.solved(dimension).shuffled(rng);
+    if (mounted) setState(() {});
+    _loadRecords();
+
+    // بارگذاری آخرین تصویر انتخاب‌شده
+    if (savedImage != null) {
+      if (savedImage.startsWith('FILE://')) {
+        final path = savedImage.substring(7);
+        await _loadFileImage(path);
+        return;
+      } else if (_assetImages.contains(savedImage)) {
+        await _loadAssetImage(savedImage);
+        return;
+      }
+    }
+    // در غیر اینصورت یک تصویر تصادفی
+    await _loadRandomAssetImage();
   }
 
   @override
