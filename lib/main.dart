@@ -707,15 +707,41 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                 ),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  // فضای رزرو شده برای اسلایدر و نوار پایینی کمتر شد تا برد بزرگ‌تر شود
+                  // محاسبه فضای موثر برای اجزا
+                  final availableHeight = constraints.maxHeight;
+                  final availableWidth = constraints.maxWidth;
+
+                  // محاسبه فضای لازم برای نوار پایینی (حدود 80 پیکسل)
+                  final bottomBarSpace = 80.0;
+
+                  // محاسبه ارتفاع اسلایدر (200 پیکسل)
+                  final sliderHeight = 200.0;
+
+                  // محاسبه فضای باقی‌مانده برای برد پازل
+                  final remainingHeight =
+                      availableHeight - bottomBarSpace - sliderHeight;
+
+                  // محاسبه حداکثر اندازه برد (مربعی)
                   final maxBoard = min(
-                    constraints.maxWidth,
-                    constraints.maxHeight - 200,
+                    availableWidth * 0.9, // 90% عرض دستگاه
+                    remainingHeight * 0.7, // 70% ارتفاع باقی‌مانده
                   ).clamp(240.0, 720.0);
+
+                  // محاسبه فاصله عمودی به صورت متناسب
+                  final remainingVerticalSpace = remainingHeight - maxBoard;
+                  final verticalSpacing = (remainingVerticalSpace / 3).clamp(
+                    10.0,
+                    50.0,
+                  );
+
                   return Center(
                     child: SingleChildScrollView(
-                      // حاشیه‌های عمودی و افقی کمتر شد
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
+                      padding: EdgeInsets.fromLTRB(
+                        availableWidth * 0.03, // 3% فاصله افقی
+                        verticalSpacing, // فاصله بالا
+                        availableWidth * 0.03, // 3% فاصله افقی
+                        bottomBarSpace, // فضای نوار پایینی
+                      ),
                       child: SafeArea(
                         top: true,
                         bottom: false,
@@ -724,8 +750,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // باکس های بالایی (زمان، حرکت، رکورد..) بنا به درخواست حذف شدند
-                              // اسلایدر با همان عرض برد (فقط تصاویر assets فعلی)
+                              // اسلایدر با همان عرض برد
                               SizedBox(
                                 width: maxBoard,
                                 child: _AssetSlider(
@@ -735,7 +760,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                   onSelect: (p) => _loadAssetImage(p),
                                 ),
                               ),
-                              const SizedBox(height: 10),
+                              SizedBox(height: verticalSpacing), // فاصله متناسب
                               Hero(
                                 tag: 'board',
                                 child: _FancyFrame(
@@ -752,7 +777,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 30),
+                              SizedBox(height: verticalSpacing), // فاصله متناسب
                             ],
                           ),
                         ),
