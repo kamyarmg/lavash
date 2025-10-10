@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show File; // برای نمایش تصویر انتخابی کاربر در اسلایدر
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -286,26 +287,75 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
   // حالت کوررنگی حذف شد
 
-  // لیست نام فایل‌های موجود در assets/images (در صورت افزودن تصویر جدید این آرایه را به‌روزرسانی کنید)
-  static const List<String> _assetImages = [
-    'assets/images/1.jpg',
-    'assets/images/2.jpg',
-    'assets/images/3.jpg',
-    'assets/images/4.jpg',
-    'assets/images/5.jpg',
-    'assets/images/6.jpg',
-    'assets/images/7.jpg',
-    'assets/images/8.jpg',
-    'assets/images/9.jpg',
-    'assets/images/10.jpg',
-    'assets/images/11.jpg',
-    'assets/images/12.jpg',
-    'assets/images/13.jpg',
-    'assets/images/14.jpg',
-  ];
+  // لیست دینامیک تصاویر که در زمان اجرا از assets بارگذاری می‌شود
+  List<String> _assetImages = [];
+  bool _imagesLoaded = false;
+
+  /// بارگذاری لیست تصاویر به صورت دینامیک از پوشه assets/images
+  ///
+  /// برای افزودن تصاویر جدید:
+  /// 1. تصاویر جدید را در پوشه assets/images/ قرار دهید
+  /// 2. نیازی به تغییر کد نیست - تصاویر به صورت خودکار شناسایی می‌شوند
+  /// 3. فرمت‌های پشتیبانی شده: .jpg, .jpeg, .png, .webp
+  Future<void> _loadAssetImagesList() async {
+    if (_imagesLoaded) return;
+
+    try {
+      // خواندن فهرست تصاویر از AssetManifest
+      final manifestContent = await rootBundle.loadString('AssetManifest.json');
+      final Map<String, dynamic> manifestMap = json.decode(manifestContent);
+
+      // فیلتر کردن فایل‌هایی که در پوشه assets/images/ هستند
+      final imageAssets = manifestMap.keys
+          .where((String key) => key.startsWith('assets/images/'))
+          .where(
+            (String key) =>
+                key.toLowerCase().endsWith('.jpg') ||
+                key.toLowerCase().endsWith('.jpeg') ||
+                key.toLowerCase().endsWith('.png') ||
+                key.toLowerCase().endsWith('.webp'),
+          )
+          .toList();
+
+      _assetImages = imageAssets;
+      _imagesLoaded = true;
+
+      // مرتب‌سازی برای نظم بهتر (اختیاری)
+      _assetImages.sort();
+
+      // لاگ برای بررسی موفقیت‌آمیز بودن بارگذاری
+      // ignore: avoid_print
+      print(
+        '✅ ${_assetImages.length} تصویر از assets بارگذاری شد: $_assetImages',
+      );
+
+      if (mounted) setState(() {});
+    } catch (e) {
+      // در صورت خطا، از لیست پیش‌فرض استفاده می‌کنیم
+      _assetImages = [
+        'assets/images/1.jpg',
+        'assets/images/2.jpg',
+        'assets/images/3.jpg',
+        'assets/images/4.jpg',
+        'assets/images/5.jpg',
+      ];
+      _imagesLoaded = true;
+      // ignore: avoid_print
+      print('خطا در بارگذاری لیست تصاویر: $e');
+    }
+  }
 
   Future<void> _loadRandomAssetImage() async {
     try {
+      // اطمینان از بارگذاری لیست تصاویر
+      await _loadAssetImagesList();
+
+      if (_assetImages.isEmpty) {
+        // ignore: avoid_print
+        print('هیچ تصویری در assets یافت نشد');
+        return;
+      }
+
       final pick = _assetImages[rng.nextInt(_assetImages.length)];
       await _loadAssetImage(pick);
     } catch (e) {
@@ -533,6 +583,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     // در این مرحله هنوز بورد را شافل نمی‌کنیم تا بتوانیم رزومه کنیم
     if (mounted) setState(() {});
     _loadRecords();
+    // ابتدا لیست تصاویر را بارگذاری می‌کنیم
+    await _loadAssetImagesList();
+
     // ابتدا تصویر را بارگذاری می‌کنیم
     final bool resumePlanned = savedGame != null && !savedGame.solved;
     if (savedImage != null) {
