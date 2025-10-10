@@ -1576,91 +1576,66 @@ class _ActionBar extends StatelessWidget {
     // در حال حاضر عمداً از SafeArea صرفنظر شده تا کاملاً به لبه بچسبد. در صورت نیاز:
     // return SafeArea(top: false, child: ...)
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
       child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withValues(alpha: 0.45),
-                Colors.white.withValues(alpha: 0.18),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 18, // فاصله بیشتر بین دکمه‌ها
+          runSpacing: 16, // فاصله بیشتر بین ردیف‌ها
+          children: [
+            _CircularGlassButton(
+              icon: const Icon(Icons.image_outlined),
+              onTap: onPickImage,
+              tooltip: 'انتخاب تصویر',
+              baseColor: const Color(0xFF34C3FF),
             ),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.35),
-              width: 1.3,
+            _CircularGlassButton(
+              icon: const Icon(Icons.auto_fix_high),
+              onTap: onShuffleIncorrect,
+              tooltip: 'شافل نامرتب‌ها',
+              baseColor: const Color(0xFF9B6BFF),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.40),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
+            // دکمه نمایش/مخفی شماره‌ها حذف شد (همیشه نمایش داده می‌شود)
+            _CircularGlassButton(
+              icon: const Icon(Icons.refresh),
+              onTap: onReset,
+              tooltip: 'شروع دوباره',
+              baseColor: const Color(0xFFFF5A5F),
+            ),
+            PopupMenuButton<int>(
+              tooltip: 'ابعاد',
+              onSelected: onChangeDim,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-            ],
-          ),
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 10,
-            runSpacing: 8,
-            children: [
-              _CircularGlassButton(
-                icon: const Icon(Icons.image_outlined),
-                onTap: onPickImage,
-                tooltip: 'انتخاب تصویر',
-                baseColor: const Color(0xFF34C3FF),
-              ),
-              _CircularGlassButton(
-                icon: const Icon(Icons.auto_fix_high),
-                onTap: onShuffleIncorrect,
-                tooltip: 'شافل نامرتب‌ها',
-                baseColor: const Color(0xFF9B6BFF),
-              ),
-              // دکمه نمایش/مخفی شماره‌ها حذف شد (همیشه نمایش داده می‌شود)
-              _CircularGlassButton(
-                icon: const Icon(Icons.refresh),
-                onTap: onReset,
-                tooltip: 'شروع دوباره',
-                baseColor: const Color(0xFFFF5A5F),
-              ),
-              PopupMenuButton<int>(
-                tooltip: 'ابعاد',
-                onSelected: onChangeDim,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                itemBuilder: (_) => [3, 4, 5]
-                    .map(
-                      (e) => PopupMenuItem(
-                        value: e,
-                        child: Text(
-                          '🧩 ${_toFaDigits('$e×$e')}',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
+              itemBuilder: (_) => [3, 4, 5]
+                  .map(
+                    (e) => PopupMenuItem(
+                      value: e,
+                      child: Text(
+                        '🧩 ${_toFaDigits('$e×$e')}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                    )
-                    .toList(),
-                child: IgnorePointer(
-                  child: _CircularGlassButton(
-                    icon: const Icon(Icons.grid_on),
-                    onTap: () {},
-                    tooltip: 'ابعاد',
-                    baseColor: const Color(0xFF58D66D),
-                  ),
+                    ),
+                  )
+                  .toList(),
+              child: IgnorePointer(
+                child: _CircularGlassButton(
+                  icon: const Icon(Icons.grid_on),
+                  onTap: () {},
+                  tooltip: 'ابعاد',
+                  baseColor: const Color(0xFF58D66D),
                 ),
               ),
-              _CircularGlassButton(
-                icon: Icon(darkMode ? Icons.light_mode : Icons.dark_mode),
-                onTap: onToggleDark,
-                tooltip: darkMode ? 'حالت روشن' : 'حالت تیره',
-                baseColor: const Color(0xFFFF78D5),
-              ),
-              // دکمه حالت کوررنگی حذف شد
-            ],
-          ),
+            ),
+            _CircularGlassButton(
+              icon: Icon(darkMode ? Icons.light_mode : Icons.dark_mode),
+              onTap: onToggleDark,
+              tooltip: darkMode ? 'حالت روشن' : 'حالت تیره',
+              baseColor: const Color(0xFFFF78D5),
+            ),
+            // دکمه حالت کوررنگی حذف شد
+          ],
         ),
       ),
     );
