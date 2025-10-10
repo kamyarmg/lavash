@@ -1592,7 +1592,7 @@ class _ActionBar extends StatelessWidget {
             _CircularGlassButton(
               icon: const Icon(Icons.auto_fix_high),
               onTap: onShuffleIncorrect,
-              tooltip: 'شافل نامرتب‌ها',
+              tooltip: 'تغییر نامرتب‌ها',
               baseColor: const Color(0xFF9B6BFF),
             ),
             // دکمه نمایش/مخفی شماره‌ها حذف شد (همیشه نمایش داده می‌شود)
