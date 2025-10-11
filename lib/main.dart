@@ -3,10 +3,13 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ------------------------------
@@ -190,8 +193,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   final rng = Random();
   // شناسه انتخاب‌شده در اسلایدر: مسیر asset یا شناسه کاربر
   String? _selectedId;
-  // گالری تصاویر کاربر (لیست) برای باقی ماندن بین اجراها
+  // گالری تصاویر کاربر (لیست بایت‌ها برای نمایش) + ورودی‌های پایدار
   List<Uint8List> _userImages = [];
+  List<String> _userEntries = []; // هر ورودی: B64://... یا FILE://path
   Timer? _timer;
   int seconds = 0;
   int moves = 0;
@@ -220,7 +224,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   static const String _kPrefLastImage =
       'settings.lastImage'; // مقادیر: 'B64://...' یا مسیر asset
   static const String _kPrefUserImages =
-      'settings.userImages'; // JSON list of B64 strings
+      'settings.userImages'; // JSON list of entries (B64://... | FILE://...)
   // کلیدهای ذخیره وضعیت بازی
   static const String _kGameDim = 'game.dimension';
   static const String _kGameTiles =
@@ -410,37 +414,62 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   // -----------------------------
   String _userId(int index) => 'USER:$index';
 
-  int _indexOfUserBase64(String b64) {
-    for (int i = 0; i < _userImages.length; i++) {
-      if (base64Encode(_userImages[i]) == b64) return i;
+  // تابع قدیمی یافتن ایندکس Base64 حذف شد؛ از _userEntries استفاده می‌کنیم
+
+  // حذف تابع قدیمی افزودن Base64؛ اکنون از _addUserEntry استفاده می‌شود
+
+  // افزودن ورودی عمومی (bytes باید دادهٔ تصویر باشد)
+  void _addUserEntry(String entry, Uint8List data) {
+    final idx = _userEntries.indexOf(entry);
+    if (idx >= 0) {
+      final img = _userImages.removeAt(idx);
+      _userImages.insert(0, img);
+      final ent = _userEntries.removeAt(idx);
+      _userEntries.insert(0, ent);
+      return;
     }
-    return -1;
+    _userImages.insert(0, data);
+    _userEntries.insert(0, entry);
+    const maxKeep = 10;
+    if (_userImages.length > maxKeep) {
+      _userImages = _userImages.sublist(0, maxKeep);
+      _userEntries = _userEntries.sublist(0, maxKeep);
+    }
   }
 
-  void _addUserImageFromBase64(String b64) {
+  // ذخیره تصویر انتخاب‌شده: روی وب Base64، روی سایر پلتفرم‌ها فایل در Documents
+  Future<String> _persistPickedImage(
+    Uint8List data, {
+    XFile? source,
+    String? suggestedName,
+  }) async {
+    if (kIsWeb) {
+      return 'B64://${base64Encode(data)}';
+    }
     try {
-      final existing = _indexOfUserBase64(b64);
-      if (existing >= 0) {
-        // Move to front
-        final img = _userImages.removeAt(existing);
-        _userImages.insert(0, img);
+      final dir = await getApplicationDocumentsDirectory();
+      final ext =
+          (suggestedName != null && p.extension(suggestedName).isNotEmpty)
+          ? p.extension(suggestedName)
+          : '.jpg';
+      final filename = 'lavash_${DateTime.now().millisecondsSinceEpoch}$ext';
+      final target = p.join(dir.path, filename);
+      if (source != null) {
+        await source.saveTo(target);
       } else {
-        final bytes = base64Decode(b64);
-        _userImages.insert(0, bytes);
+        final xf = XFile.fromData(data, name: filename);
+        await xf.saveTo(target);
       }
-      // Optional: cap the list size to avoid huge storage
-      const maxKeep = 10;
-      if (_userImages.length > maxKeep) {
-        _userImages = _userImages.sublist(0, maxKeep);
-      }
-    } catch (_) {}
+      return 'FILE://$target';
+    } catch (_) {
+      return 'B64://${base64Encode(data)}';
+    }
   }
 
   Future<void> _saveUserImagesList() async {
     try {
       final sp = await SharedPreferences.getInstance();
-      final listB64 = _userImages.map((e) => base64Encode(e)).toList();
-      await sp.setString(_kPrefUserImages, jsonEncode(listB64));
+      await sp.setString(_kPrefUserImages, jsonEncode(_userEntries));
     } catch (_) {}
   }
 
@@ -450,15 +479,22 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       final raw = sp.getString(_kPrefUserImages);
       if (raw == null) return;
       final List<dynamic> arr = jsonDecode(raw);
-      final list = <Uint8List>[];
+      _userImages = [];
+      _userEntries = [];
       for (final item in arr) {
         if (item is String) {
           try {
-            list.add(base64Decode(item));
+            if (item.startsWith('B64://')) {
+              _userImages.add(base64Decode(item.substring(6)));
+              _userEntries.add(item);
+            } else if (item.startsWith('FILE://') && !kIsWeb) {
+              final bytes = await XFile(item.substring(7)).readAsBytes();
+              _userImages.add(bytes);
+              _userEntries.add(item);
+            }
           } catch (_) {}
         }
       }
-      _userImages = list;
     } catch (_) {}
   }
   // حالت سریع حذف شد
@@ -502,9 +538,12 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       final result = await picker.pickImage(source: ImageSource.gallery);
       if (result == null) return;
       final data = await result.readAsBytes();
-      // افزودن به ابتدای لیست گالری کاربر (و حذف نسخه‌های تکراری)
-      final b64 = base64Encode(data);
-      _addUserImageFromBase64(b64);
+      final entry = await _persistPickedImage(
+        data,
+        source: result,
+        suggestedName: result.name,
+      );
+      _addUserEntry(entry, data);
       final codec = await ui.instantiateImageCodec(data);
       final frame = await codec.getNextFrame();
       if (!mounted) return;
@@ -516,7 +555,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       });
       // ذخیره آخرین تصویر انتخاب‌شده به صورت Base64 تا روی وب نیز کار کند
       final sp = await SharedPreferences.getInstance();
-      await sp.setString(_kPrefLastImage, 'B64://$b64');
+      await sp.setString(_kPrefLastImage, entry);
       await _saveUserImagesList();
       // سپس بورد ریست می‌شود (خارج از همان setState برای جلوگیری از مشکلات رندر)
       _clearGameState();
@@ -595,8 +634,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       // بدون استفاده از dart:io فایل را با XFile بخوانیم
       final xf = XFile(filePath);
       final data = await xf.readAsBytes();
-      final b64 = base64Encode(data);
-      _addUserImageFromBase64(b64);
+      final entry = 'FILE://$filePath';
+      _addUserEntry(entry, data);
       final codec = await ui.instantiateImageCodec(data);
       final frame = await codec.getNextFrame();
       if (!mounted) return;
@@ -612,7 +651,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         _buildSlices();
       }
       final sp = await SharedPreferences.getInstance();
-      await sp.setString(_kPrefLastImage, 'B64://$b64');
+      await sp.setString(_kPrefLastImage, entry);
       await _saveUserImagesList();
     } catch (e) {
       await _loadRandomAssetImage();
@@ -651,7 +690,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         try {
           final data = base64Decode(b64);
           // اگر این تصویر در گالری کاربر نیست، به ابتدای لیست اضافه و ذخیره کن
-          _addUserImageFromBase64(b64);
+          _addUserEntry('B64://$b64', data);
           await _saveUserImagesList();
           final codec = await ui.instantiateImageCodec(data);
           final frame = await codec.getNextFrame();
@@ -659,7 +698,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
             setState(() {
               image = frame.image;
               // انتخاب ایتم مربوطه در گالری
-              final idx = _indexOfUserBase64(b64);
+              final idx = _userEntries.indexOf('B64://$b64');
               _selectedId = idx >= 0 ? _userId(idx) : _userId(0);
             });
           }
@@ -669,6 +708,25 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         }
       } else if (_assetImages.contains(savedImage)) {
         await _loadAssetImage(savedImage, forResume: resumePlanned);
+      } else if (savedImage.startsWith('FILE://') && !kIsWeb) {
+        final path = savedImage.substring(7);
+        try {
+          final data = await XFile(path).readAsBytes();
+          _addUserEntry(savedImage, data);
+          await _saveUserImagesList();
+          final codec = await ui.instantiateImageCodec(data);
+          final frame = await codec.getNextFrame();
+          if (mounted) {
+            setState(() {
+              image = frame.image;
+              final idx = _userEntries.indexOf(savedImage);
+              _selectedId = idx >= 0 ? _userId(idx) : _userId(0);
+            });
+          }
+          await _buildSlices();
+        } catch (_) {
+          await _loadRandomAssetImage();
+        }
       } else if (savedImage.startsWith('FILE://')) {
         // پشتیبانی قدیمی: تبدیل به Base64 و استفاده
         final path = savedImage.substring(7);
@@ -803,7 +861,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Opacity(
-                      opacity: 0.2, // خیلی ترنسپرنت
+                      opacity: 0.3, // خیلی ترنسپرنت
                       child: CustomPaint(painter: _CoverImagePainter(image!)),
                     ),
                   ),
