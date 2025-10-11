@@ -208,6 +208,19 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   bool _showWinOverlay = false;
   late AnimationController _winBanner;
 
+  // تم: پالت رنگی بر اساس seed و اندیس انتخاب‌شده
+  static const String _kPrefThemeIdx = 'settings.themeIndex';
+  final List<Color> _seedPalette = const [
+    Colors.teal,
+    Colors.indigo,
+    Colors.cyan,
+    Colors.purple,
+    Colors.lightBlue,
+    Colors.amber,
+    Colors.pink,
+  ];
+  int _themeIdx = 0; // پیش‌فرض: teal
+
   // رکوردها
   int? bestMoves;
   int? bestTime; // ثانیه
@@ -301,6 +314,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_kPrefDark, darkMode);
   }
+
+  // متد تغییر تم حذف شد
   // حالت کوررنگی حذف شد
 
   // لیست دینامیک تصاویر که در زمان اجرا از assets بارگذاری می‌شود
@@ -664,10 +679,16 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     final savedDark = sp.getBool(_kPrefDark);
     final savedDim = sp.getInt(_kPrefDim);
     final savedImage = sp.getString(_kPrefLastImage);
+    final savedThemeIdx = sp.getInt(_kPrefThemeIdx);
     // خواندن وضعیت بازی
     final savedGame = await _readSavedGame();
 
     if (savedDark != null) darkMode = savedDark;
+    if (savedThemeIdx != null &&
+        savedThemeIdx >= 0 &&
+        savedThemeIdx < _seedPalette.length) {
+      _themeIdx = savedThemeIdx;
+    }
     // اگر بازی ذخیره شده معتبر داریم، بعد را از همان بگیریم
     if (savedGame != null && !savedGame.solved) {
       dimension = savedGame.dim;
@@ -832,7 +853,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       brightness: darkMode ? Brightness.dark : Brightness.light,
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFFFF6EC7),
+        seedColor: _seedPalette[_themeIdx],
         brightness: darkMode ? Brightness.dark : Brightness.light,
       ),
       textTheme: GoogleFonts.vazirmatnTextTheme(
@@ -852,29 +873,14 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
           extendBodyBehindAppBar: true,
           body: Stack(
             children: [
-              // پسزمینه پایه: روشن در حالت عادی و تیرهتر در حالت تاریک
-              Container(
-                color: darkMode ? const Color(0xFF0E0F12) : Colors.white,
+              // پسزمینه مدرن با بلور ملایم، دِساتوره، و ویگنت
+              Positioned.fill(
+                child: _ModernBackground(
+                  image: image,
+                  dark: darkMode,
+                  primary: Theme.of(context).colorScheme.primary,
+                ),
               ),
-              // پسزمینه: تصویر انتخابشده پازل به صورت خیلی ترنسپرنت و شفاف
-              if (image != null)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Opacity(
-                      opacity: 0.3, // خیلی ترنسپرنت
-                      child: CustomPaint(painter: _CoverImagePainter(image!)),
-                    ),
-                  ),
-                ),
-              // اسکریم تیره ملایم فقط در حالت تاریک برای زیبایی و کنتراست بهتر
-              if (darkMode)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Container(
-                      color: Colors.black.withValues(alpha: 0.28),
-                    ),
-                  ),
-                ),
               // عنوان رنگی در بالای صفحه، فقط وقتی نسبت ارتفاع برنامه به عرض آن > 1.5 باشد
               if ((MediaQuery.of(context).size.height /
                       MediaQuery.of(context).size.width) >
@@ -1567,7 +1573,7 @@ class _TileContent extends StatelessWidget {
                     fit: BoxFit.cover,
                     child: RawImage(
                       image: slice,
-                      filterQuality: FilterQuality.medium,
+                      filterQuality: FilterQuality.high,
                     ),
                   )
                 : (image != null
@@ -1604,7 +1610,7 @@ class _ImagePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint();
+    final paint = Paint()..filterQuality = FilterQuality.high;
     final srcRect = () {
       if (clipRow == null || clipCol == null) {
         return Rect.fromLTWH(
@@ -1664,6 +1670,113 @@ class _CoverImagePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _CoverImagePainter oldDelegate) =>
       oldDelegate.image != image;
+}
+
+// ------------------------------------------------------------
+// Modern Background: faint image with blur, desaturation, vignette
+// ------------------------------------------------------------
+class _ModernBackground extends StatelessWidget {
+  final ui.Image? image;
+  final bool dark;
+  final Color primary;
+  const _ModernBackground({
+    required this.image,
+    required this.dark,
+    required this.primary,
+  });
+
+  static List<double> _saturationMatrix(double s) {
+    // s=1 original, s=0 grayscale
+    const lumR = 0.213, lumG = 0.715, lumB = 0.072;
+    final inv = 1 - s;
+    final r = inv * lumR;
+    final g = inv * lumG;
+    final b = inv * lumB;
+    return <double>[
+      r + s,
+      g,
+      b,
+      0,
+      0,
+      r,
+      g + s,
+      b,
+      0,
+      0,
+      r,
+      g,
+      b + s,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Base surface color
+    final base = dark ? const Color(0xFF0E0F12) : Colors.white;
+    final vignetteColor = Colors.black.withValues(alpha: dark ? 0.30 : 0.12);
+    final topScrim = (dark ? Colors.black : Colors.white).withValues(
+      alpha: dark ? 0.18 : 0.06,
+    );
+    final tint = primary.withValues(alpha: dark ? 0.06 : 0.04);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(color: base),
+        if (image != null)
+          IgnorePointer(
+            child: ColorFiltered(
+              colorFilter: ColorFilter.matrix(_saturationMatrix(0.70)),
+              child: ImageFiltered(
+                imageFilter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                child: Opacity(
+                  opacity: dark ? 0.40 : 0.52,
+                  child: CustomPaint(painter: _CoverImagePainter(image!)),
+                ),
+              ),
+            ),
+          ),
+        // Subtle color tint from primary
+        IgnorePointer(child: Container(color: tint)),
+        // Soft top scrim to improve contrast under app bar/controls
+        IgnorePointer(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Container(
+              height: 220,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [topScrim, Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Vignette around edges
+        IgnorePointer(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.center,
+                radius: 1.0,
+                colors: [Colors.transparent, vignetteColor],
+                stops: const [0.70, 1.0],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // ------------------------------------------------------------
