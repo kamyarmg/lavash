@@ -199,6 +199,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   // حالت کوررنگی حذف شد
   bool _justSolved = false;
   late AnimationController _solveParticles;
+  // نمایش پیام برد به صورت اوورلی
+  bool _showWinOverlay = false;
+  late AnimationController _winBanner;
 
   // رکوردها
   int? bestMoves;
@@ -233,6 +236,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     );
+    _winBanner = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+      reverseDuration: const Duration(milliseconds: 300),
+    );
     // اگر تنظیمات تصویری نیامد، بعداً در _loadSettings تصویر تصادفی بارگذاری می‌شود
   }
 
@@ -240,6 +248,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   void dispose() {
     _timer?.cancel();
     _solveParticles.dispose();
+    _winBanner.dispose();
     super.dispose();
   }
 
@@ -500,21 +509,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         _justSolved = true;
         _solveParticles.forward(from: 0);
         HapticFeedback.mediumImpact();
-        Future.delayed(const Duration(milliseconds: 600), () {
-          if (!mounted) return;
-          showDialog(
-            barrierDismissible: false,
-            context: context,
-            builder: (_) => _WinDialog(
-              moves: moves,
-              time: _formatTime(seconds),
-              onReplay: () {
-                Navigator.pop(context);
-                _loadRandomAssetImage();
-              },
-            ),
-          );
-        });
+        // نمایش اوورلی برد (غیرمسدودکننده و قابل لمس برای بستن)
+        setState(() => _showWinOverlay = true);
+        _winBanner.forward(from: 0);
       }
     }
   }
@@ -862,6 +859,33 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                       painter: ParticleBurstPainter(
                         progress: _solveParticles.value,
                         seed: moves,
+                      ),
+                    ),
+                  ),
+                ),
+              // اوورلی برد: پیام زیبا و انیمیشنی که با کلیک ناپدید می‌شود
+              if (_showWinOverlay)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      _winBanner.reverse();
+                      Future.delayed(const Duration(milliseconds: 280), () {
+                        if (!mounted) return;
+                        setState(() => _showWinOverlay = false);
+                      });
+                    },
+                    child: Center(
+                      child: _WinToast(
+                        animation: CurvedAnimation(
+                          parent: _winBanner,
+                          curve: Curves.easeOutBack,
+                          reverseCurve: Curves.easeIn,
+                        ),
+                        title: 'شما برنده شدید! 🎉',
+                        subtitle: 'برای ادامه کلیک کنید',
+                        movesText: _toFaDigits(moves),
+                        timeText: _formatTime(seconds),
                       ),
                     ),
                   ),
@@ -1250,17 +1274,19 @@ class _PuzzleView extends StatelessWidget {
               Positioned.fill(child: Container(color: Colors.transparent)),
               for (int i = 0; i < board.tiles.length - 1; i++)
                 _buildTile(context, board.tiles[i], tileSize),
-              if (board.isSolved)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Opacity(
-                      opacity: 0.12,
-                      child: CustomPaint(
-                        painter: _ImagePainter(image!, dimension: 1),
-                      ),
+              // وقتی حل شد، تصویر کامل را با انیمیشن فید بالای تایل‌ها نشان بده
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 420),
+                    curve: Curves.easeInOut,
+                    opacity: board.isSolved ? 1.0 : 0.0,
+                    child: CustomPaint(
+                      painter: _ImagePainter(image!, dimension: 1),
                     ),
                   ),
                 ),
+              ),
             ],
           );
         },
@@ -1730,86 +1756,190 @@ class _AnimatedTapScaleState extends State<_AnimatedTapScale> {
 // ------------------------------------------------------------
 // Win Dialog
 // ------------------------------------------------------------
-class _WinDialog extends StatelessWidget {
-  final int moves;
-  final String time;
-  final VoidCallback onReplay;
-  const _WinDialog({
-    required this.moves,
-    required this.time,
-    required this.onReplay,
+// ------------------------------------------------------------
+// Win Toast (animated, tappable overlay)
+// ------------------------------------------------------------
+class _WinToast extends StatelessWidget {
+  final Animation<double> animation;
+  final String title;
+  final String subtitle;
+  final String movesText;
+  final String timeText;
+  const _WinToast({
+    required this.animation,
+    required this.title,
+    required this.subtitle,
+    required this.movesText,
+    required this.timeText,
   });
+
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.white.withValues(alpha: 0.10),
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(26, 30, 26, 26),
+    final theme = Theme.of(context);
+    final scale = Tween<double>(begin: 0.85, end: 1.0).animate(animation);
+    final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+    final slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+
+    return FadeTransition(
+      opacity: fade,
+      child: SlideTransition(
+        position: slide,
+        child: ScaleTransition(
+          scale: scale,
+          child: _WhiteWinBox(
+            title: title,
+            subtitle: subtitle,
+            movesText: movesText,
+            timeText: timeText,
+            accent: theme.colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Crisp white colorful box used inside the overlay
+class _WhiteWinBox extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String movesText;
+  final String timeText;
+  final Color accent;
+  const _WhiteWinBox({
+    required this.title,
+    required this.subtitle,
+    required this.movesText,
+    required this.timeText,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final gradientBorder = const LinearGradient(
+      colors: [
+        Color(0xFFFF6EC7),
+        Color(0xFFFFD36E),
+        Color(0xFF72F1B8),
+        Color(0xFF00E5FF),
+        Color(0xFF9B6BFF),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+
+    Widget chip({
+      required Color from,
+      required Color to,
+      required Widget child,
+    }) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(32),
-          gradient: LinearGradient(
-            colors: [
-              Colors.white.withValues(alpha: 0.40),
-              Colors.white.withValues(alpha: 0.16),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.65),
-            width: 1.3,
-          ),
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(colors: [from, to]),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.45),
-              blurRadius: 30,
-              offset: const Offset(0, 14),
-            ),
+            BoxShadow(color: from.withValues(alpha: 0.35), blurRadius: 12),
           ],
         ),
+        child: DefaultTextStyle(
+          style: GoogleFonts.vazirmatn(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+          ),
+          child: child,
+        ),
+      );
+    }
+
+    return Container(
+      constraints: const BoxConstraints(minWidth: 280, maxWidth: 460),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: gradientBorder,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF000000).withValues(alpha: 0.25),
+            blurRadius: 26,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text(
-              '🥳 تبریک!',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
+            // Header with trophy and title
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [accent, const Color(0xFFFF6EC7)],
+                    ),
+                  ),
+                  child: const Icon(Icons.emoji_events, color: Colors.white),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: GoogleFonts.vazirmatn(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.vazirmatn(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.black54,
               ),
             ),
             const SizedBox(height: 14),
-            Text(
-              'پازل را در ${_toFaDigits(moves)} حرکت و زمان $time حل کردی!',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 22),
-            ElevatedButton.icon(
-              onPressed: onReplay,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6EC7),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 26,
-                  vertical: 14,
+            // Chips row
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                chip(
+                  from: const Color(0xFFFF6EC7),
+                  to: const Color(0xFFFF8FE3),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [const Text('🔢 '), Text('حرکت: $movesText')],
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+                chip(
+                  from: const Color(0xFF00E5FF),
+                  to: const Color(0xFF72F1B8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [const Text('⏱️ '), Text('زمان: $timeText')],
+                  ),
                 ),
-              ),
-              icon: const Icon(Icons.refresh, color: Colors.white),
-              label: const Text(
-                'دوباره',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              ],
             ),
           ],
         ),
