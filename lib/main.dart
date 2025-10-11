@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show File; // برای نمایش تصویر انتخابی کاربر در اسلایدر
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -188,9 +187,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   int dimension = 3;
   late PuzzleBoard board;
   ui.Image? image; // تصویر انتخاب‌شده
-  XFile? pickedFile;
   final rng = Random();
-  String? _selectedAssetPath; // مسیر انتخاب شده از اسلایدر
+  // شناسه انتخاب‌شده در اسلایدر: مسیر asset یا شناسه کاربر
+  String? _selectedId;
+  // گالری تصاویر کاربر (لیست) برای باقی ماندن بین اجراها
+  List<Uint8List> _userImages = [];
   Timer? _timer;
   int seconds = 0;
   int moves = 0;
@@ -217,7 +218,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   static const String _kPrefDark = 'settings.darkMode';
   static const String _kPrefDim = 'settings.dimension';
   static const String _kPrefLastImage =
-      'settings.lastImage'; // مقادیر: 'FILE://path' یا مسیر asset
+      'settings.lastImage'; // مقادیر: 'B64://...' یا مسیر asset
+  static const String _kPrefUserImages =
+      'settings.userImages'; // JSON list of B64 strings
   // کلیدهای ذخیره وضعیت بازی
   static const String _kGameDim = 'game.dimension';
   static const String _kGameTiles =
@@ -380,8 +383,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       final frame = await codec.getNextFrame();
       if (!mounted) return;
       setState(() {
-        _selectedAssetPath = path;
+        _selectedId = path;
         image = frame.image;
+        // وقتی تصویر asset انتخاب می‌شود، انتخاب کاربر غیرفعال می‌شود
       });
       // ذخیره آخرین تصویر انتخاب‌شده (asset)
       final sp = await SharedPreferences.getInstance();
@@ -399,6 +403,63 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       // ignore: avoid_print
       print('Asset image load failed: $e');
     }
+  }
+
+  // -----------------------------
+  // User images gallery helpers
+  // -----------------------------
+  String _userId(int index) => 'USER:$index';
+
+  int _indexOfUserBase64(String b64) {
+    for (int i = 0; i < _userImages.length; i++) {
+      if (base64Encode(_userImages[i]) == b64) return i;
+    }
+    return -1;
+  }
+
+  void _addUserImageFromBase64(String b64) {
+    try {
+      final existing = _indexOfUserBase64(b64);
+      if (existing >= 0) {
+        // Move to front
+        final img = _userImages.removeAt(existing);
+        _userImages.insert(0, img);
+      } else {
+        final bytes = base64Decode(b64);
+        _userImages.insert(0, bytes);
+      }
+      // Optional: cap the list size to avoid huge storage
+      const maxKeep = 10;
+      if (_userImages.length > maxKeep) {
+        _userImages = _userImages.sublist(0, maxKeep);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveUserImagesList() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final listB64 = _userImages.map((e) => base64Encode(e)).toList();
+      await sp.setString(_kPrefUserImages, jsonEncode(listB64));
+    } catch (_) {}
+  }
+
+  Future<void> _loadUserImagesList() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final raw = sp.getString(_kPrefUserImages);
+      if (raw == null) return;
+      final List<dynamic> arr = jsonDecode(raw);
+      final list = <Uint8List>[];
+      for (final item in arr) {
+        if (item is String) {
+          try {
+            list.add(base64Decode(item));
+          } catch (_) {}
+        }
+      }
+      _userImages = list;
+    } catch (_) {}
   }
   // حالت سریع حذف شد
 
@@ -440,20 +501,23 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       final picker = ImagePicker();
       final result = await picker.pickImage(source: ImageSource.gallery);
       if (result == null) return;
-      pickedFile = result;
       final data = await result.readAsBytes();
+      // افزودن به ابتدای لیست گالری کاربر (و حذف نسخه‌های تکراری)
+      final b64 = base64Encode(data);
+      _addUserImageFromBase64(b64);
       final codec = await ui.instantiateImageCodec(data);
       final frame = await codec.getNextFrame();
       if (!mounted) return;
       // ابتدا تصویر ست می‌شود
       setState(() {
         image = frame.image;
-        // مسیر انتخاب شده را به عنوان selected نگه می‌داریم تا در اسلایدر سنتر شود
-        _selectedAssetPath = pickedFile!.path;
+        // شناسه انتخاب‌شده به عنوان تصویر کاربر (اولین مورد لیست)
+        _selectedId = _userId(0);
       });
-      // ذخیره آخرین تصویر انتخاب‌شده (فایل کاربر)
+      // ذخیره آخرین تصویر انتخاب‌شده به صورت Base64 تا روی وب نیز کار کند
       final sp = await SharedPreferences.getInstance();
-      await sp.setString(_kPrefLastImage, 'FILE://${pickedFile!.path}');
+      await sp.setString(_kPrefLastImage, 'B64://$b64');
+      await _saveUserImagesList();
       // سپس بورد ریست می‌شود (خارج از همان setState برای جلوگیری از مشکلات رندر)
       _clearGameState();
       _reset(shuffle: true);
@@ -528,35 +592,29 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   Future<void> _loadFileImage(String filePath, {bool forResume = false}) async {
     await Future<void>.delayed(Duration.zero); // تضمین async
     try {
-      final f = File(filePath);
-      if (!await f.exists()) {
-        // اگر فایل پیدا نشد، تصویر تصادفی asset بارگذاری شود
-        await _loadRandomAssetImage();
-        return;
-      }
-      final data = await f.readAsBytes();
+      // بدون استفاده از dart:io فایل را با XFile بخوانیم
+      final xf = XFile(filePath);
+      final data = await xf.readAsBytes();
+      final b64 = base64Encode(data);
+      _addUserImageFromBase64(b64);
       final codec = await ui.instantiateImageCodec(data);
       final frame = await codec.getNextFrame();
       if (!mounted) return;
       setState(() {
         image = frame.image;
-        _selectedAssetPath = filePath;
-        pickedFile = XFile(filePath);
+        _selectedId = _userId(0);
       });
       if (forResume) {
-        // فقط اسلایس ها را بساز؛ بورد را دست نزن
         await _buildSlices();
       } else {
-        // تغییر تصویر = شروع بازی جدید (در حالت رزومه بعدا بورد از save پر می‌شود)
         await _clearGameState();
         _reset(shuffle: true);
         _buildSlices();
       }
-      // ذخیره نیز به همان صورت باقی می‌ماند
       final sp = await SharedPreferences.getInstance();
-      await sp.setString(_kPrefLastImage, 'FILE://$filePath');
+      await sp.setString(_kPrefLastImage, 'B64://$b64');
+      await _saveUserImagesList();
     } catch (e) {
-      // اگر مشکلی پیش آمد، fallback
       await _loadRandomAssetImage();
     }
   }
@@ -582,15 +640,39 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     _loadRecords();
     // ابتدا لیست تصاویر را بارگذاری می‌کنیم
     await _loadAssetImagesList();
+    // گالری کاربر را بارگذاری کن
+    await _loadUserImagesList();
 
     // ابتدا تصویر را بارگذاری می‌کنیم
     final bool resumePlanned = savedGame != null && !savedGame.solved;
     if (savedImage != null) {
-      if (savedImage.startsWith('FILE://')) {
-        final path = savedImage.substring(7);
-        await _loadFileImage(path, forResume: resumePlanned);
+      if (savedImage.startsWith('B64://')) {
+        final b64 = savedImage.substring(6);
+        try {
+          final data = base64Decode(b64);
+          // اگر این تصویر در گالری کاربر نیست، به ابتدای لیست اضافه و ذخیره کن
+          _addUserImageFromBase64(b64);
+          await _saveUserImagesList();
+          final codec = await ui.instantiateImageCodec(data);
+          final frame = await codec.getNextFrame();
+          if (mounted) {
+            setState(() {
+              image = frame.image;
+              // انتخاب ایتم مربوطه در گالری
+              final idx = _indexOfUserBase64(b64);
+              _selectedId = idx >= 0 ? _userId(idx) : _userId(0);
+            });
+          }
+          await _buildSlices();
+        } catch (_) {
+          await _loadRandomAssetImage();
+        }
       } else if (_assetImages.contains(savedImage)) {
         await _loadAssetImage(savedImage, forResume: resumePlanned);
+      } else if (savedImage.startsWith('FILE://')) {
+        // پشتیبانی قدیمی: تبدیل به Base64 و استفاده
+        final path = savedImage.substring(7);
+        await _loadFileImage(path, forResume: resumePlanned);
       } else {
         await _loadRandomAssetImage();
       }
@@ -805,9 +887,40 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                 width: maxBoard,
                                 child: _AssetSlider(
                                   assets: _assetImages,
-                                  userPath: pickedFile?.path,
-                                  selected: _selectedAssetPath,
-                                  onSelect: (p) => _loadAssetImage(p),
+                                  userImages: _userImages,
+                                  selectedId: _selectedId,
+                                  onSelect: (id) async {
+                                    if (id.startsWith('USER:')) {
+                                      final idx = int.tryParse(
+                                        id.split(':')[1],
+                                      );
+                                      if (idx != null &&
+                                          idx >= 0 &&
+                                          idx < _userImages.length) {
+                                        final data = _userImages[idx];
+                                        final codec = await ui
+                                            .instantiateImageCodec(data);
+                                        final frame = await codec
+                                            .getNextFrame();
+                                        if (!mounted) return;
+                                        setState(() {
+                                          image = frame.image;
+                                          _selectedId = id;
+                                        });
+                                        final sp =
+                                            await SharedPreferences.getInstance();
+                                        await sp.setString(
+                                          _kPrefLastImage,
+                                          'B64://${base64Encode(data)}',
+                                        );
+                                        _clearGameState();
+                                        _reset(shuffle: true);
+                                        _buildSlices();
+                                      }
+                                    } else {
+                                      _loadAssetImage(id);
+                                    }
+                                  },
                                 ),
                               ),
                               SizedBox(height: verticalSpacing), // فاصله متناسب
@@ -903,14 +1016,14 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
 // ------------------------------------------------------------
 class _AssetSlider extends StatefulWidget {
   final List<String> assets;
-  final String? userPath; // مسیر تصویر انتخابی کاربر (File path)
-  final String? selected;
+  final List<Uint8List> userImages; // گالری تصاویر کاربر
+  final String? selectedId; // مسیر asset یا '__USER__'
   final ValueChanged<String> onSelect;
   const _AssetSlider({
     required this.assets,
-    required this.selected,
+    required this.selectedId,
     required this.onSelect,
-    this.userPath,
+    this.userImages = const [],
   });
   @override
   State<_AssetSlider> createState() => _AssetSliderState();
@@ -923,18 +1036,18 @@ class _AssetSliderState extends State<_AssetSlider> {
   static const _thumbMarginH = 6.0; // دو طرف هر آیتم
 
   List<String> get _allItems {
-    // اگر کاربر تصویری انتخاب کرده، آن را به عنوان اولین آیتم موقت قرار می‌دهیم
-    if (widget.userPath != null) {
-      return ['FILE://${widget.userPath}'] + widget.assets;
-    }
-    return widget.assets;
+    final userIds = List<String>.generate(
+      widget.userImages.length,
+      (i) => _MainAppState()._userId(i),
+    );
+    return [...userIds, ...widget.assets];
   }
 
   @override
   void didUpdateWidget(covariant _AssetSlider oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selected != widget.selected ||
-        oldWidget.userPath != widget.userPath) {
+    if (oldWidget.selectedId != widget.selectedId ||
+        oldWidget.userImages.length != widget.userImages.length) {
       // پس از یک فریم تا layout انجام شود
       WidgetsBinding.instance.addPostFrameCallback((_) => _centerSelected());
     }
@@ -949,17 +1062,11 @@ class _AssetSliderState extends State<_AssetSlider> {
   void _centerSelected() {
     if (!_controller.hasClients) return;
     final items = _allItems;
-    final selPath = widget.selected;
-    if (selPath == null) return;
+    final selId = widget.selectedId;
+    if (selId == null) return;
 
-    // Resolve index considering file prefix
-    int index = items.indexWhere((p) {
-      if (p.startsWith('FILE://')) {
-        final real = p.substring(7);
-        return real == selPath;
-      }
-      return p == selPath;
-    });
+    // یافتن ایندکس آیتم انتخاب‌شده
+    int index = items.indexOf(selId);
     if (index < 0) return;
 
     // محاسبه آفست با توجه به عرض متفاوت آیتم انتخاب‌شده
@@ -993,19 +1100,21 @@ class _AssetSliderState extends State<_AssetSlider> {
         padding: const EdgeInsets.symmetric(horizontal: 0),
         itemCount: items.length,
         itemBuilder: (c, i) {
-          final rawPath = items[i];
-          final isFile = rawPath.startsWith('FILE://');
-          final displayPath = isFile ? rawPath.substring(7) : rawPath;
-          final isSel = displayPath == widget.selected;
+          final id = items[i];
+          final isUser = id.startsWith('USER:');
+          final isSel = id == widget.selectedId;
           final baseWidth = isSel ? _thumbSelectedWidth : _thumbWidth;
           final marginV = isSel ? 10.0 : 10.0;
           return _SliderThumb(
             index: i,
-            path: displayPath,
             selected: isSel,
-            onTap: () => widget.onSelect(displayPath),
+            onTap: () => widget.onSelect(id),
             accent: theme.colorScheme.primary,
-            isFile: isFile,
+            isUser: isUser,
+            bytes: isUser
+                ? widget.userImages[int.tryParse(id.split(':')[1]) ?? 0]
+                : null,
+            assetPath: isUser ? null : id,
             width: baseWidth,
             margin: EdgeInsets.symmetric(
               horizontal: _thumbMarginH,
@@ -1020,20 +1129,22 @@ class _AssetSliderState extends State<_AssetSlider> {
 
 class _SliderThumb extends StatefulWidget {
   final int index;
-  final String path;
   final bool selected;
   final VoidCallback onTap;
   final Color accent;
-  final bool isFile; // آیا تصویر فایل کاربر است
+  final bool isUser; // آیا تصویر کاربر است
+  final Uint8List? bytes; // داده‌های تصویر کاربر
+  final String? assetPath; // مسیر asset
   final double? width;
   final EdgeInsetsGeometry? margin;
   const _SliderThumb({
     required this.index,
-    required this.path,
     required this.selected,
     required this.onTap,
     required this.accent,
-    this.isFile = false,
+    this.isUser = false,
+    this.bytes,
+    this.assetPath,
     this.width,
     this.margin,
   });
@@ -1106,8 +1217,9 @@ class _SliderThumbState extends State<_SliderThumb>
               borderGrad: borderGrad,
               shineAnim: _shine,
               isSelected: sel,
-              isFile: widget.isFile,
-              path: widget.path,
+              isUser: widget.isUser,
+              bytes: widget.bytes,
+              assetPath: widget.assetPath,
             ),
           ),
         ),
@@ -1122,15 +1234,17 @@ class _SquareAwareThumb extends StatelessWidget {
   final Gradient borderGrad;
   final AnimationController shineAnim;
   final bool isSelected;
-  final bool isFile;
-  final String path;
+  final bool isUser;
+  final Uint8List? bytes;
+  final String? assetPath;
   const _SquareAwareThumb({
     required this.square,
     required this.borderGrad,
     required this.shineAnim,
     required this.isSelected,
-    required this.isFile,
-    required this.path,
+    required this.isUser,
+    this.bytes,
+    this.assetPath,
   });
 
   @override
@@ -1163,9 +1277,12 @@ class _SquareAwareThumb extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  isFile
-                      ? Image.file(File(path), fit: BoxFit.cover)
-                      : Image.asset(path, fit: BoxFit.cover),
+                  if (isUser)
+                    (bytes != null
+                        ? Image.memory(bytes!, fit: BoxFit.cover)
+                        : const ColoredBox(color: Colors.black12))
+                  else
+                    Image.asset(assetPath!, fit: BoxFit.cover),
                   // Subtle parallax / shine overlay
                   AnimatedBuilder(
                     animation: shineAnim,
