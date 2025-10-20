@@ -12,11 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// ماژول حذف فایل به صورت پلتفرم-شرطی (برای وب NO-OP)
 
-// ------------------------------
-// تبدیل ارقام لاتین به فارسی
-// ------------------------------
 String _toFaDigits(dynamic input) {
   final persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
   return input.toString().replaceAllMapped(
@@ -25,23 +21,17 @@ String _toFaDigits(dynamic input) {
   );
 }
 
-// ---------------------------------------------
-// مدل کاشی (Tile)
-// ---------------------------------------------
 class Tile {
-  final int correctIndex; // موقعیت صحیح در آرایه 0..n-1
-  int currentIndex; // موقعیت فعلی
+  final int correctIndex;
+  int currentIndex;
   Tile({required this.correctIndex, required this.currentIndex});
 
   bool get inCorrectPlace => correctIndex == currentIndex;
 }
 
-// ---------------------------------------------
-// برد پازل
-// ---------------------------------------------
 class PuzzleBoard {
-  final int dimension; // مثلا 3 برای 3x3
-  final List<Tile> tiles; // آخرین خانه خالی است (index = tiles.length -1)
+  final int dimension;
+  final List<Tile> tiles;
 
   PuzzleBoard._(this.dimension, this.tiles);
 
@@ -54,13 +44,12 @@ class PuzzleBoard {
     return PuzzleBoard._(dim, tiles);
   }
 
-  int get emptyTileIndex => tiles.length - 1; // index در آرایه tiles
+  int get emptyTileIndex => tiles.length - 1;
 
   bool get isSolved => tiles.every((t) => t.inCorrectPlace);
 
-  /// لیست ایندکس‌های آرایه که قابل حرکت اند (همسایه با کاشی خالی)
   List<int> movableTileArrayIndexes() {
-    final emptyPos = tiles[emptyTileIndex].currentIndex; // موقعیت خطی خالی
+    final emptyPos = tiles[emptyTileIndex].currentIndex;
     final row = emptyPos ~/ dimension;
     final col = emptyPos % dimension;
     final candidates = <int>[];
@@ -81,7 +70,6 @@ class PuzzleBoard {
     return candidates;
   }
 
-  /// تلاش برای حرکت دادن tile با index آرایه tiles
   bool move(int tileArrayIndex) {
     if (!movableTileArrayIndexes().contains(tileArrayIndex)) return false;
     final empty = tiles[emptyTileIndex];
@@ -165,10 +153,9 @@ class PuzzleBoard {
   }
 }
 
-// وضعیت ذخیره‌شده بازی برای رزومه
 class _SavedGame {
   final int dim;
-  final List<int> tileCurrents; // طول = dim*dim (برای هر correctIndex)
+  final List<int> tileCurrents;
   final int moves;
   final int seconds;
   final bool solved;
@@ -189,32 +176,30 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
-  // Keys for safe context inside MaterialApp
   final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
   final GlobalKey<ScaffoldMessengerState> _scaffoldKey =
       GlobalKey<ScaffoldMessengerState>();
   int dimension = 3;
   late PuzzleBoard board;
-  ui.Image? image; // تصویر انتخاب‌شده
+  ui.Image? image;
   final rng = Random();
-  // شناسه انتخاب‌شده در اسلایدر: مسیر asset یا شناسه کاربر
+
   String? _selectedId;
-  // گالری تصاویر کاربر (لیست بایت‌ها برای نمایش) + ورودی‌های پایدار
+
   List<Uint8List> _userImages = [];
-  List<String> _userEntries = []; // هر ورودی: B64://... یا FILE://path
+  List<String> _userEntries = [];
   Timer? _timer;
   int seconds = 0;
   int moves = 0;
-  // نمایش شماره تایل‌ها همیشه فعال است (showNumbers حذف شد)
-  bool darkMode = false; // fastMode حذف شد
-  // حالت کوررنگی حذف شد
+
+  bool darkMode = false;
+
   bool _justSolved = false;
   late AnimationController _solveParticles;
-  // نمایش پیام برد به صورت اوورلی
+
   bool _showWinOverlay = false;
   late AnimationController _winBanner;
 
-  // تم: پالت رنگی بر اساس seed و اندیس انتخاب‌شده
   static const String _kPrefThemeIdx = 'settings.themeIndex';
   final List<Color> _seedPalette = const [
     Colors.teal,
@@ -225,29 +210,20 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     Colors.amber,
     Colors.pink,
   ];
-  int _themeIdx = 0; // پیش‌فرض: teal
+  int _themeIdx = 0;
 
-  // رکوردها
   int? bestMoves;
-  int? bestTime; // ثانیه
-  // رنگ‌های ثابت (حذف سیستم پالت)
-  // گرادیان روشن و درخشان که در هر دو مود زیبا باشد.
-  // اگر کاربر مود تیره را بزند، یک لایه تیره شفاف روی آن اعمال می‌کنیم.
-  // static const Color _accentColor = Color(0xFF00BFA5); // حذف: دیگر استفاده نمی‌شود
+  int? bestTime;
 
-  // کش برش‌ها
-  List<ui.Image?>? _slices; // طول = tiles.length -1
-  // کلیدهای ذخیره تنظیمات کاربر
+  List<ui.Image?>? _slices;
+
   static const String _kPrefDark = 'settings.darkMode';
   static const String _kPrefDim = 'settings.dimension';
-  static const String _kPrefLastImage =
-      'settings.lastImage'; // مقادیر: 'B64://...' یا مسیر asset
-  static const String _kPrefUserImages =
-      'settings.userImages'; // JSON list of entries (B64://... | FILE://...)
-  // کلیدهای ذخیره وضعیت بازی
+  static const String _kPrefLastImage = 'settings.lastImage';
+  static const String _kPrefUserImages = 'settings.userImages';
+
   static const String _kGameDim = 'game.dimension';
-  static const String _kGameTiles =
-      'game.tiles'; // CSV از currentIndex ها برای هر correctIndex
+  static const String _kGameTiles = 'game.tiles';
   static const String _kGameMoves = 'game.moves';
   static const String _kGameSeconds = 'game.seconds';
   static const String _kGameSolved = 'game.solved';
@@ -256,7 +232,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     board = PuzzleBoard.solved(dimension).shuffled(rng);
-    // ابتدا تنظیمات ذخیره‌شده را می‌خوانیم؛ شامل مود تیره، ابعاد، و آخرین تصویر
+
     _loadSettings();
     _solveParticles = AnimationController(
       vsync: this,
@@ -267,7 +243,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 500),
       reverseDuration: const Duration(milliseconds: 300),
     );
-    // اگر تنظیمات تصویری نیامد، بعداً در _loadSettings تصویر تصادفی بارگذاری می‌شود
   }
 
   @override
@@ -285,7 +260,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       if (!mounted) return;
       if (board.isSolved) return;
       setState(() => seconds++);
-      // ذخیره وضعیت هر ثانیه تا در صورت خروج، ادامه دهد
+
       _saveGameState(solved: false);
     });
   }
@@ -313,36 +288,22 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     if (changed && mounted) setState(() {});
   }
 
-  // progress bar حذف شد
-
   void _toggleDark() async {
     setState(() => darkMode = !darkMode);
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_kPrefDark, darkMode);
   }
 
-  // متد تغییر تم حذف شد
-  // حالت کوررنگی حذف شد
-
-  // لیست دینامیک تصاویر که در زمان اجرا از assets بارگذاری می‌شود
   List<String> _assetImages = [];
   bool _imagesLoaded = false;
 
-  /// بارگذاری لیست تصاویر به صورت دینامیک از پوشه assets/images
-  ///
-  /// برای افزودن تصاویر جدید:
-  /// 1. تصاویر جدید را در پوشه assets/images/ قرار دهید
-  /// 2. نیازی به تغییر کد نیست - تصاویر به صورت خودکار شناسایی می‌شوند
-  /// 3. فرمت‌های پشتیبانی شده: .jpg, .jpeg, .png, .webp
   Future<void> _loadAssetImagesList() async {
     if (_imagesLoaded) return;
 
     try {
-      // خواندن فهرست تصاویر از AssetManifest
       final manifestContent = await rootBundle.loadString('AssetManifest.json');
       final Map<String, dynamic> manifestMap = json.decode(manifestContent);
 
-      // فیلتر کردن فایل‌هایی که در پوشه assets/images/ هستند
       final imageAssets = manifestMap.keys
           .where((String key) => key.startsWith('assets/images/'))
           .where(
@@ -357,18 +318,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       _assetImages = imageAssets;
       _imagesLoaded = true;
 
-      // مرتب‌سازی برای نظم بهتر (اختیاری)
       _assetImages.sort();
-
-      // لاگ برای بررسی موفقیت‌آمیز بودن بارگذاری
-      // ignore: avoid_print
-      print(
-        '✅ ${_assetImages.length} تصویر از assets بارگذاری شد: $_assetImages',
-      );
 
       if (mounted) setState(() {});
     } catch (e) {
-      // در صورت خطا، از لیست پیش‌فرض استفاده می‌کنیم
       _assetImages = [
         'assets/images/1.jpg',
         'assets/images/2.jpg',
@@ -377,27 +330,21 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         'assets/images/5.jpg',
       ];
       _imagesLoaded = true;
-      // ignore: avoid_print
-      print('خطا در بارگذاری لیست تصاویر: $e');
     }
   }
 
   Future<void> _loadRandomAssetImage() async {
     try {
-      // اطمینان از بارگذاری لیست تصاویر
       await _loadAssetImagesList();
 
       if (_assetImages.isEmpty) {
-        // ignore: avoid_print
-        print('هیچ تصویری در assets یافت نشد');
         return;
       }
 
       final pick = _assetImages[rng.nextInt(_assetImages.length)];
       await _loadAssetImage(pick);
     } catch (e) {
-      // ignore: avoid_print
-      print('Random asset image load failed: $e');
+      return;
     }
   }
 
@@ -410,36 +357,24 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       setState(() {
         _selectedId = path;
         image = frame.image;
-        // وقتی تصویر asset انتخاب می‌شود، انتخاب کاربر غیرفعال می‌شود
       });
-      // ذخیره آخرین تصویر انتخاب‌شده (asset)
+
       final sp = await SharedPreferences.getInstance();
       await sp.setString(_kPrefLastImage, path);
       if (forResume) {
-        // فقط اسلایس ها را بساز؛ بورد را دست نزن
         await _buildSlices();
       } else {
-        // تغییر تصویر = شروع بازی جدید
         await _clearGameState();
         _reset(shuffle: true);
         _buildSlices();
       }
     } catch (e) {
-      // ignore: avoid_print
-      print('Asset image load failed: $e');
+      return;
     }
   }
 
-  // -----------------------------
-  // User images gallery helpers
-  // -----------------------------
   String _userId(int index) => 'USER:$index';
 
-  // تابع قدیمی یافتن ایندکس Base64 حذف شد؛ از _userEntries استفاده می‌کنیم
-
-  // حذف تابع قدیمی افزودن Base64؛ اکنون از _addUserEntry استفاده می‌شود
-
-  // افزودن ورودی عمومی (bytes باید دادهٔ تصویر باشد)
   void _addUserEntry(String entry, Uint8List data) {
     final idx = _userEntries.indexOf(entry);
     if (idx >= 0) {
@@ -458,7 +393,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     }
   }
 
-  // ذخیره تصویر انتخاب‌شده: روی وب Base64، روی سایر پلتفرم‌ها فایل در Documents
   Future<String> _persistPickedImage(
     Uint8List data, {
     XFile? source,
@@ -518,7 +452,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       }
     } catch (_) {}
   }
-  // حالت سریع حذف شد
 
   Future<void> _buildSlices() async {
     if (image == null) {
@@ -547,8 +480,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       }
       _slices = list;
     } catch (e) {
-      // ignore: avoid_print
-      print('slice cache failed: $e');
+      return;
     }
     if (mounted) setState(() {});
   }
@@ -568,24 +500,21 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       final codec = await ui.instantiateImageCodec(data);
       final frame = await codec.getNextFrame();
       if (!mounted) return;
-      // ابتدا تصویر ست می‌شود
+
       setState(() {
         image = frame.image;
-        // شناسه انتخاب‌شده به عنوان تصویر کاربر (اولین مورد لیست)
+
         _selectedId = _userId(0);
       });
-      // ذخیره آخرین تصویر انتخاب‌شده به صورت Base64 تا روی وب نیز کار کند
+
       final sp = await SharedPreferences.getInstance();
       await sp.setString(_kPrefLastImage, entry);
       await _saveUserImagesList();
-      // سپس بورد ریست می‌شود (خارج از همان setState برای جلوگیری از مشکلات رندر)
+
       _clearGameState();
       _reset(shuffle: true);
       _buildSlices();
-      // لاگ ساده برای اطمینان
-      // (می‌توانید بعداً حذف کنید)
-      // ignore: avoid_print
-      print('Image loaded: ${image!.width}x${image!.height}');
+
     } catch (e) {
       if (!mounted) return;
       _showSnack('خطا در بارگذاری تصویر: $e');
@@ -598,12 +527,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       if (await f.exists()) {
         await f.delete();
       }
-    } catch (_) {
-      // ignore errors
-    }
+    } catch (_) {}
   }
 
-  // حذف تصویر انتخابی کاربر با تایید
   Future<void> _confirmAndDeleteSelectedUserImage() async {
     final id = _selectedId;
     if (id == null || !id.startsWith('USER:')) return;
@@ -631,21 +557,18 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     );
     if (confirmed != true) return;
 
-    // تلاش برای حذف فایل فیزیکی در صورت FILE://
     final entry = _userEntries[idx];
     if (entry.startsWith('FILE://')) {
       final path = entry.substring(7);
       await deleteFileIfExists(path);
     }
 
-    // حذف از آرایه‌ها و ذخیره
     setState(() {
       _userEntries.removeAt(idx);
       _userImages.removeAt(idx);
     });
     await _saveUserImagesList();
 
-    // اگر هنوز عکس کاربری داریم، اولین را انتخاب کن؛ در غیر اینصورت یکی از assets را بارگذاری کن
     if (_userImages.isNotEmpty) {
       try {
         final data = _userImages[0];
@@ -695,7 +618,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     _slices = null;
     setState(() {});
     if (image != null) _buildSlices();
-    // شروع جدید => وضعیت قبلی پاک شود
+
     _clearGameState();
   }
 
@@ -703,7 +626,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     dimension = d;
     _reset(shuffle: true);
     _loadRecords();
-    // ذخیره ابعاد انتخاب‌شده
+
     SharedPreferences.getInstance().then((sp) => sp.setInt(_kPrefDim, d));
   }
 
@@ -713,17 +636,17 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     if (moved) {
       moves++;
       setState(() {});
-      // ذخیره پس از هر حرکت
+
       _saveGameState();
       if (board.isSolved) {
         _timer?.cancel();
         _saveRecordIfBetter();
-        // علامت‌گذاری به عنوان حل شده تا در اجرای بعدی رزومه نشود
+
         _saveGameState(solved: true);
         _justSolved = true;
         _solveParticles.forward(from: 0);
         HapticFeedback.mediumImpact();
-        // نمایش اوورلی برد (غیرمسدودکننده و قابل لمس برای بستن)
+
         setState(() => _showWinOverlay = true);
         _winBanner.forward(from: 0);
       }
@@ -738,11 +661,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     return _toFaDigits(result);
   }
 
-  // بارگذاری تصویر از روی فایل (برای حالت ادامه از تنظیمات)
   Future<void> _loadFileImage(String filePath, {bool forResume = false}) async {
-    await Future<void>.delayed(Duration.zero); // تضمین async
+    await Future<void>.delayed(Duration.zero);
     try {
-      // بدون استفاده از dart:io فایل را با XFile بخوانیم
       final xf = XFile(filePath);
       final data = await xf.readAsBytes();
       final entry = 'FILE://$filePath';
@@ -769,14 +690,13 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     }
   }
 
-  // خواندن و اعمال تنظیمات ذخیره‌شده (مود تیره، ابعاد، آخرین تصویر)
   Future<void> _loadSettings() async {
     final sp = await SharedPreferences.getInstance();
     final savedDark = sp.getBool(_kPrefDark);
     final savedDim = sp.getInt(_kPrefDim);
     final savedImage = sp.getString(_kPrefLastImage);
     final savedThemeIdx = sp.getInt(_kPrefThemeIdx);
-    // خواندن وضعیت بازی
+
     final savedGame = await _readSavedGame();
 
     if (savedDark != null) darkMode = savedDark;
@@ -785,28 +705,27 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         savedThemeIdx < _seedPalette.length) {
       _themeIdx = savedThemeIdx;
     }
-    // اگر بازی ذخیره شده معتبر داریم، بعد را از همان بگیریم
+
     if (savedGame != null && !savedGame.solved) {
       dimension = savedGame.dim;
     } else if (savedDim != null && savedDim >= 3 && savedDim <= 8) {
       dimension = savedDim;
     }
-    // در این مرحله هنوز بورد را شافل نمی‌کنیم تا بتوانیم رزومه کنیم
+
     if (mounted) setState(() {});
     _loadRecords();
-    // ابتدا لیست تصاویر را بارگذاری می‌کنیم
+
     await _loadAssetImagesList();
-    // گالری کاربر را بارگذاری کن
+
     await _loadUserImagesList();
 
-    // ابتدا تصویر را بارگذاری می‌کنیم
     final bool resumePlanned = savedGame != null && !savedGame.solved;
     if (savedImage != null) {
       if (savedImage.startsWith('B64://')) {
         final b64 = savedImage.substring(6);
         try {
           final data = base64Decode(b64);
-          // اگر این تصویر در گالری کاربر نیست، به ابتدای لیست اضافه و ذخیره کن
+
           _addUserEntry('B64://$b64', data);
           await _saveUserImagesList();
           final codec = await ui.instantiateImageCodec(data);
@@ -814,7 +733,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
           if (mounted) {
             setState(() {
               image = frame.image;
-              // انتخاب ایتم مربوطه در گالری
+
               final idx = _userEntries.indexOf('B64://$b64');
               _selectedId = idx >= 0 ? _userId(idx) : _userId(0);
             });
@@ -845,7 +764,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
           await _loadRandomAssetImage();
         }
       } else if (savedImage.startsWith('FILE://')) {
-        // پشتیبانی قدیمی: تبدیل به Base64 و استفاده
         final path = savedImage.substring(7);
         await _loadFileImage(path, forResume: resumePlanned);
       } else {
@@ -855,19 +773,14 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       await _loadRandomAssetImage();
     }
 
-    // اگر وضعیت بازی ذخیره شده و حل نشده داریم، مستقیم رزومه کن
     if (resumePlanned) {
       _applySavedGame(savedGame);
       _startTimer(resetSeconds: false);
     } else {
-      // اگر بازی قبلی حل شده بود یا نبود، یک بازی جدید داشته باشیم
       _reset(shuffle: true);
     }
   }
 
-  // ------------------------------------------------------------
-  // Game-state persistence helpers
-  // ------------------------------------------------------------
   Future<void> _saveGameState({bool? solved}) async {
     try {
       final sp = await SharedPreferences.getInstance();
@@ -971,7 +884,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
           extendBodyBehindAppBar: true,
           body: Stack(
             children: [
-              // پسزمینه مدرن با بلور ملایم، دِساتوره، و ویگنت
               Positioned.fill(
                 child: _ModernBackground(
                   image: image,
@@ -979,7 +891,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   primary: Theme.of(context).colorScheme.primary,
                 ),
               ),
-              // عنوان رنگی در بالای صفحه، فقط وقتی نسبت ارتفاع برنامه به عرض آن > 1.5 باشد
+
               if ((MediaQuery.of(context).size.height /
                       MediaQuery.of(context).size.width) >
                   1.5)
@@ -1001,27 +913,21 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                 ),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  // محاسبه فضای موثر برای اجزا
                   final availableHeight = constraints.maxHeight;
                   final availableWidth = constraints.maxWidth;
 
-                  // محاسبه فضای لازم برای نوار پایینی (حدود 80 پیکسل)
                   final bottomBarSpace = 80.0;
 
-                  // محاسبه ارتفاع اسلایدر (200 پیکسل)
                   final sliderHeight = 200.0;
 
-                  // محاسبه فضای باقی‌مانده برای برد پازل
                   final remainingHeight =
                       availableHeight - bottomBarSpace - sliderHeight;
 
-                  // محاسبه حداکثر اندازه برد (مربعی)
                   final maxBoard = min(
-                    availableWidth * 0.9, // 90% عرض دستگاه
-                    remainingHeight * 0.7, // 70% ارتفاع باقی‌مانده
+                    availableWidth * 0.9,
+                    remainingHeight * 0.7,
                   ).clamp(240.0, 720.0);
 
-                  // محاسبه فاصله عمودی به صورت متناسب
                   final remainingVerticalSpace = remainingHeight - maxBoard;
                   final verticalSpacing = (remainingVerticalSpace / 3).clamp(
                     10.0,
@@ -1031,10 +937,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   return Center(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.fromLTRB(
-                        availableWidth * 0.03, // 3% فاصله افقی
-                        verticalSpacing, // فاصله بالا
-                        availableWidth * 0.03, // 3% فاصله افقی
-                        bottomBarSpace, // فضای نوار پایینی
+                        availableWidth * 0.03,
+                        verticalSpacing,
+                        availableWidth * 0.03,
+                        bottomBarSpace,
                       ),
                       child: SafeArea(
                         top: true,
@@ -1044,7 +950,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // اسلایدر با همان عرض برد
                               SizedBox(
                                 width: maxBoard,
                                 child: _AssetSlider(
@@ -1085,7 +990,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                   },
                                 ),
                               ),
-                              SizedBox(height: verticalSpacing), // فاصله متناسب
+                              SizedBox(height: verticalSpacing),
                               Hero(
                                 tag: 'board',
                                 child: _FancyFrame(
@@ -1102,7 +1007,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                   ),
                                 ),
                               ),
-                              SizedBox(height: verticalSpacing), // فاصله متناسب
+                              SizedBox(height: verticalSpacing),
                             ],
                           ),
                         ),
@@ -1111,7 +1016,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   );
                 },
               ),
-              // دکمه های پایین
+
               Positioned(
                 left: 0,
                 right: 0,
@@ -1140,7 +1045,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-              // اوورلی برد: پیام زیبا و انیمیشنی که با کلیک ناپدید می‌شود
+
               if (_showWinOverlay)
                 Positioned.fill(
                   child: GestureDetector(
@@ -1175,13 +1080,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 }
 
-// ------------------------------------------------------------
-// Slider of asset images
-// ------------------------------------------------------------
 class _AssetSlider extends StatefulWidget {
   final List<String> assets;
-  final List<Uint8List> userImages; // گالری تصاویر کاربر
-  final String? selectedId; // مسیر asset یا '__USER__'
+  final List<Uint8List> userImages;
+  final String? selectedId;
   final ValueChanged<String> onSelect;
   const _AssetSlider({
     required this.assets,
@@ -1197,7 +1099,7 @@ class _AssetSliderState extends State<_AssetSlider> {
   final _controller = ScrollController();
   static const _thumbWidth = 96.0;
   static const _thumbSelectedWidth = 176.0;
-  static const _thumbMarginH = 6.0; // دو طرف هر آیتم
+  static const _thumbMarginH = 6.0;
 
   List<String> get _allItems {
     final userIds = List<String>.generate(
@@ -1212,7 +1114,6 @@ class _AssetSliderState extends State<_AssetSlider> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedId != widget.selectedId ||
         oldWidget.userImages.length != widget.userImages.length) {
-      // پس از یک فریم تا layout انجام شود
       WidgetsBinding.instance.addPostFrameCallback((_) => _centerSelected());
     }
   }
@@ -1229,14 +1130,11 @@ class _AssetSliderState extends State<_AssetSlider> {
     final selId = widget.selectedId;
     if (selId == null) return;
 
-    // یافتن ایندکس آیتم انتخاب‌شده
     int index = items.indexOf(selId);
     if (index < 0) return;
 
-    // محاسبه آفست با توجه به عرض متفاوت آیتم انتخاب‌شده
     double offsetBefore = 0;
     for (int i = 0; i < index; i++) {
-      // تا قبل از ایندکس انتخاب‌شده، همگی غیرانتخابی‌اند
       offsetBefore += _thumbWidth + (_thumbMarginH * 2);
     }
     final selItemWidth = _thumbSelectedWidth;
@@ -1296,9 +1194,9 @@ class _SliderThumb extends StatefulWidget {
   final bool selected;
   final VoidCallback onTap;
   final Color accent;
-  final bool isUser; // آیا تصویر کاربر است
-  final Uint8List? bytes; // داده‌های تصویر کاربر
-  final String? assetPath; // مسیر asset
+  final bool isUser;
+  final Uint8List? bytes;
+  final String? assetPath;
   final double? width;
   final EdgeInsetsGeometry? margin;
   const _SliderThumb({
@@ -1342,7 +1240,7 @@ class _SliderThumbState extends State<_SliderThumb>
   @override
   Widget build(BuildContext context) {
     final sel = widget.selected;
-    // بزرگ‌نمایی واضح‌تر برای آیتم انتخاب‌شده
+
     final scale = sel ? 1.10 + 0.04 * _hover : 0.88 + 0.06 * _hover;
     final borderGrad = sel
         ? LinearGradient(
@@ -1392,7 +1290,6 @@ class _SliderThumbState extends State<_SliderThumb>
   }
 }
 
-// Internal reusable piece that can enforce square shape when needed
 class _SquareAwareThumb extends StatelessWidget {
   final bool square;
   final Gradient borderGrad;
@@ -1429,7 +1326,6 @@ class _SquareAwareThumb extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Outer gradient border
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
@@ -1447,7 +1343,7 @@ class _SquareAwareThumb extends StatelessWidget {
                         : const ColoredBox(color: Colors.black12))
                   else
                     Image.asset(assetPath!, fit: BoxFit.cover),
-                  // Subtle parallax / shine overlay
+
                   AnimatedBuilder(
                     animation: shineAnim,
                     builder: (_, __) {
@@ -1471,7 +1367,7 @@ class _SquareAwareThumb extends StatelessWidget {
                       );
                     },
                   ),
-                  // Dark overlay when not selected
+
                   if (!isSelected)
                     Container(
                       decoration: BoxDecoration(
@@ -1485,7 +1381,7 @@ class _SquareAwareThumb extends StatelessWidget {
                         ),
                       ),
                     ),
-                  // Selection bottom glow
+
                   if (isSelected)
                     Align(
                       alignment: Alignment.bottomCenter,
@@ -1519,7 +1415,6 @@ class _FancyFrame extends StatelessWidget {
   const _FancyFrame({required this.child});
   @override
   Widget build(BuildContext context) {
-    // قاب کاملاً مخفی: بدون دکوراسیون و پدینگ
     return child;
   }
 }
@@ -1530,7 +1425,7 @@ class _PuzzleView extends StatelessWidget {
   final ui.Image? image;
   final void Function(int tileArrayIndex) onTileTap;
   final List<ui.Image?>? slices;
-  // fastMode حذف شد
+
   const _PuzzleView({
     required this.board,
     required this.dimension,
@@ -1551,11 +1446,10 @@ class _PuzzleView extends StatelessWidget {
           }
           return Stack(
             children: [
-              // پس‌زمینه روشن داخل برد برای سفیدتر و درخشان‌تر شدن پشت تایل‌ها
               Positioned.fill(child: Container(color: Colors.transparent)),
               for (int i = 0; i < board.tiles.length - 1; i++)
                 _buildTile(context, board.tiles[i], tileSize),
-              // وقتی حل شد، تصویر کامل را با انیمیشن فید بالای تایل‌ها نشان بده
+
               Positioned.fill(
                 child: IgnorePointer(
                   child: AnimatedOpacity(
@@ -1581,7 +1475,7 @@ class _PuzzleView extends StatelessWidget {
     final correctPos = tile.correctIndex;
     final correctRow = correctPos ~/ dimension;
     final correctCol = correctPos % dimension;
-    // حذف افکت کج و حرکت عمودی – بازگشت به حالت ثابت
+
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOutCubic,
@@ -1615,7 +1509,7 @@ class _TileContent extends StatelessWidget {
   final int correctCol;
   final bool isCorrect;
   final ui.Image? slice;
-  // fastMode حذف شد
+
   const _TileContent({
     required this.image,
     required this.dimension,
@@ -1641,7 +1535,6 @@ class _TileContent extends StatelessWidget {
             ),
           ]
         : [
-            // سایه تیره تایل‌ها نرم‌تر و کم‌عمق‌تر شد
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 10,
@@ -1686,8 +1579,6 @@ class _TileContent extends StatelessWidget {
                           ),
                         )
                       : const SizedBox.shrink())),
-            // شماره تایل حذف شد
-            // افکت اختصاصی حالت بدون تصویر حذف شد
           ],
         ),
       ),
@@ -1737,11 +1628,6 @@ class _ImagePainter extends CustomPainter {
   }
 }
 
-// کلاس _PatternPainter حذف شد (حالت کوررنگی)
-
-// ------------------------------------------------------------
-// Full-screen background cover painter (for transparent bg image)
-// ------------------------------------------------------------
 class _CoverImagePainter extends CustomPainter {
   final ui.Image image;
   _CoverImagePainter(this.image);
@@ -1754,7 +1640,6 @@ class _CoverImagePainter extends CustomPainter {
     final dstH = size.height;
     if (imgW == 0 || imgH == 0 || dstW == 0 || dstH == 0) return;
 
-    // BoxFit.cover
     final scale = max(dstW / imgW, dstH / imgH);
     final drawW = imgW * scale;
     final drawH = imgH * scale;
@@ -1772,9 +1657,6 @@ class _CoverImagePainter extends CustomPainter {
       oldDelegate.image != image;
 }
 
-// ------------------------------------------------------------
-// Modern Background: faint image with blur, desaturation, vignette
-// ------------------------------------------------------------
 class _ModernBackground extends StatelessWidget {
   final ui.Image? image;
   final bool dark;
@@ -1786,7 +1668,6 @@ class _ModernBackground extends StatelessWidget {
   });
 
   static List<double> _saturationMatrix(double s) {
-    // s=1 original, s=0 grayscale
     const lumR = 0.213, lumG = 0.715, lumB = 0.072;
     final inv = 1 - s;
     final r = inv * lumR;
@@ -1818,7 +1699,6 @@ class _ModernBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Base surface color
     final base = dark ? const Color(0xFF0E0F12) : Colors.white;
     final vignetteColor = Colors.black.withValues(alpha: dark ? 0.30 : 0.12);
     final topScrim = (dark ? Colors.black : Colors.white).withValues(
@@ -1843,9 +1723,9 @@ class _ModernBackground extends StatelessWidget {
               ),
             ),
           ),
-        // Subtle color tint from primary
+
         IgnorePointer(child: Container(color: tint)),
-        // Soft top scrim to improve contrast under app bar/controls
+
         IgnorePointer(
           child: Align(
             alignment: Alignment.topCenter,
@@ -1861,7 +1741,7 @@ class _ModernBackground extends StatelessWidget {
             ),
           ),
         ),
-        // Vignette around edges
+
         IgnorePointer(
           child: Container(
             decoration: BoxDecoration(
@@ -1879,16 +1759,6 @@ class _ModernBackground extends StatelessWidget {
   }
 }
 
-// ------------------------------------------------------------
-// Animated Gradient Background + Blobs
-// ------------------------------------------------------------
-// AnimatedBackground & _BlobPainter حذف شدند تا پس زمینه کاملا سفید باشد
-
-// عنوان گرادیانی حذف شد زیرا هدری در بالا نداریم
-
-// ------------------------------------------------------------
-// Rainbow Title (gradient text)
-// ------------------------------------------------------------
 class _RainbowTitle extends StatelessWidget {
   final String text;
   const _RainbowTitle({required this.text});
@@ -1907,7 +1777,6 @@ class _RainbowTitle extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // پشت‌نویس محو برای خوانایی بهتر روی پس‌زمینه
           Text(
             text,
             textAlign: TextAlign.center,
@@ -2016,9 +1885,6 @@ class _CircularGlassButton extends StatelessWidget {
   }
 }
 
-// ------------------------------------------------------------
-// Bottom Action Bar
-// ------------------------------------------------------------
 class _ActionBar extends StatelessWidget {
   final VoidCallback onPickImage;
   final VoidCallback onShuffleIncorrect;
@@ -2042,17 +1908,13 @@ class _ActionBar extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    // برای چسبیدن کامل به پایین، padding پایینی قبلی حذف شد.
-    // اگر بخواهید فضای امن (SafeArea) موبایل‌های ناچ‌دار حفظ شود، می‌توانید SafeArea را فعال کنید.
-    // در حال حاضر عمداً از SafeArea صرفنظر شده تا کاملاً به لبه بچسبد. در صورت نیاز:
-    // return SafeArea(top: false, child: ...)
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
       child: Center(
         child: Wrap(
           alignment: WrapAlignment.center,
-          spacing: 18, // فاصله بیشتر بین دکمه‌ها
-          runSpacing: 16, // فاصله بیشتر بین ردیف‌ها
+          spacing: 18,
+          runSpacing: 16,
           children: [
             _CircularGlassButton(
               icon: const Icon(Icons.image_outlined),
@@ -2066,7 +1928,7 @@ class _ActionBar extends StatelessWidget {
               tooltip: 'تغییر نامرتب‌ها',
               baseColor: const Color(0xFF9B6BFF),
             ),
-            // دکمه نمایش/مخفی شماره‌ها حذف شد (همیشه نمایش داده می‌شود)
+
             _CircularGlassButton(
               icon: const Icon(Icons.refresh),
               onTap: onReset,
@@ -2105,7 +1967,7 @@ class _ActionBar extends StatelessWidget {
               tooltip: darkMode ? 'حالت روشن' : 'حالت تیره',
               baseColor: const Color(0xFFFF78D5),
             ),
-            // دکمه حالت کوررنگی حذف شد
+
             if (showDelete && onDelete != null)
               _CircularGlassButton(
                 icon: const Icon(Icons.delete_forever_outlined),
@@ -2114,7 +1976,7 @@ class _ActionBar extends StatelessWidget {
                     await onDelete!();
                   } catch (e) {
                     final ctx = context;
-                    // تلاش برای نمایش خطا به کاربر
+
                     ScaffoldMessenger.maybeOf(ctx)?.showSnackBar(
                       SnackBar(content: Text('خطا در حذف عکس: $e')),
                     );
@@ -2130,9 +1992,6 @@ class _ActionBar extends StatelessWidget {
   }
 }
 
-// ------------------------------------------------------------
-// Animated tap scale wrapper
-// ------------------------------------------------------------
 class _AnimatedTapScale extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
@@ -2162,12 +2021,6 @@ class _AnimatedTapScaleState extends State<_AnimatedTapScale> {
   }
 }
 
-// ------------------------------------------------------------
-// Win Dialog
-// ------------------------------------------------------------
-// ------------------------------------------------------------
-// Win Toast (animated, tappable overlay)
-// ------------------------------------------------------------
 class _WinToast extends StatelessWidget {
   final Animation<double> animation;
   final String title;
@@ -2211,7 +2064,6 @@ class _WinToast extends StatelessWidget {
   }
 }
 
-// Crisp white colorful box used inside the overlay
 class _WhiteWinBox extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -2289,7 +2141,6 @@ class _WhiteWinBox extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Header with trophy and title
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -2326,7 +2177,7 @@ class _WhiteWinBox extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            // Chips row
+
             Wrap(
               alignment: WrapAlignment.center,
               spacing: 10,
@@ -2357,11 +2208,8 @@ class _WhiteWinBox extends StatelessWidget {
   }
 }
 
-// ------------------------------------------------------------
-// Particles Painter (simple radial burst)
-// ------------------------------------------------------------
 class ParticleBurstPainter extends CustomPainter {
-  final double progress; // 0..1
+  final double progress;
   final int seed;
   ParticleBurstPainter({required this.progress, required this.seed});
   @override
@@ -2390,10 +2238,6 @@ class ParticleBurstPainter extends CustomPainter {
   bool shouldRepaint(covariant ParticleBurstPainter oldDelegate) =>
       oldDelegate.progress != progress;
 }
-
-// ------------------------------------------------------------
-// END ADDITIONS
-// ------------------------------------------------------------
 
 void main() {
   runApp(const MainApp());
