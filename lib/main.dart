@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' as io;
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -11,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// ماژول حذف فایل به صورت پلتفرم-شرطی (برای وب NO-OP)
 
 // ------------------------------
 // تبدیل ارقام لاتین به فارسی
@@ -187,6 +189,10 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
+  // Keys for safe context inside MaterialApp
+  final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
+  final GlobalKey<ScaffoldMessengerState> _scaffoldKey =
+      GlobalKey<ScaffoldMessengerState>();
   int dimension = 3;
   late PuzzleBoard board;
   ui.Image? image; // تصویر انتخاب‌شده
@@ -582,9 +588,99 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       print('Image loaded: ${image!.width}x${image!.height}');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('خطا در بارگذاری تصویر: $e')));
+      _showSnack('خطا در بارگذاری تصویر: $e');
+    }
+  }
+
+  Future<void> deleteFileIfExists(String path) async {
+    try {
+      final f = io.File(path);
+      if (await f.exists()) {
+        await f.delete();
+      }
+    } catch (_) {
+      // ignore errors
+    }
+  }
+
+  // حذف تصویر انتخابی کاربر با تایید
+  Future<void> _confirmAndDeleteSelectedUserImage() async {
+    final id = _selectedId;
+    if (id == null || !id.startsWith('USER:')) return;
+    final idx = int.tryParse(id.split(':').elementAt(1));
+    if (idx == null || idx < 0 || idx >= _userEntries.length) return;
+
+    final dialogContext = _navKey.currentContext ?? context;
+    final confirmed = await showDialog<bool>(
+      context: dialogContext,
+      useRootNavigator: true,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف عکس'),
+        content: const Text('آیا از حذف این عکس مطمئن هستید؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('خیر'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('بله، حذف شود'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    // تلاش برای حذف فایل فیزیکی در صورت FILE://
+    final entry = _userEntries[idx];
+    if (entry.startsWith('FILE://')) {
+      final path = entry.substring(7);
+      await deleteFileIfExists(path);
+    }
+
+    // حذف از آرایه‌ها و ذخیره
+    setState(() {
+      _userEntries.removeAt(idx);
+      _userImages.removeAt(idx);
+    });
+    await _saveUserImagesList();
+
+    // اگر هنوز عکس کاربری داریم، اولین را انتخاب کن؛ در غیر اینصورت یکی از assets را بارگذاری کن
+    if (_userImages.isNotEmpty) {
+      try {
+        final data = _userImages[0];
+        final codec = await ui.instantiateImageCodec(data);
+        final frame = await codec.getNextFrame();
+        if (!mounted) return;
+        setState(() {
+          image = frame.image;
+          _selectedId = _userId(0);
+        });
+        final sp = await SharedPreferences.getInstance();
+        await sp.setString(_kPrefLastImage, 'B64://${base64Encode(data)}');
+        _clearGameState();
+        _reset(shuffle: true);
+        _buildSlices();
+        _showSnack('عکس حذف شد و بازی جدید شروع شد');
+      } catch (_) {
+        await _loadRandomAssetImage();
+        _showSnack('عکس حذف شد و بازی جدید شروع شد');
+      }
+    } else {
+      await _loadRandomAssetImage();
+      _showSnack('عکس حذف شد و بازی جدید شروع شد');
+    }
+  }
+
+  void _showSnack(String text) {
+    final sm = _scaffoldKey.currentState;
+    if (sm != null) {
+      sm.clearSnackBars();
+      sm.showSnackBar(SnackBar(content: Text(text)));
+      return;
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
 
@@ -865,6 +961,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     );
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      navigatorKey: _navKey,
+      scaffoldMessengerKey: _scaffoldKey,
       theme: theme,
       home: Directionality(
         textDirection: TextDirection.rtl,
@@ -1027,6 +1125,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   dimension: dimension,
                   darkMode: darkMode,
                   onToggleDark: _toggleDark,
+                  showDelete: (_selectedId?.startsWith('USER:') ?? false),
+                  onDelete: _confirmAndDeleteSelectedUserImage,
                 ),
               ),
               if (_justSolved)
@@ -1102,7 +1202,7 @@ class _AssetSliderState extends State<_AssetSlider> {
   List<String> get _allItems {
     final userIds = List<String>.generate(
       widget.userImages.length,
-      (i) => _MainAppState()._userId(i),
+      (i) => 'USER:$i',
     );
     return [...userIds, ...widget.assets];
   }
@@ -1927,6 +2027,8 @@ class _ActionBar extends StatelessWidget {
   final int dimension;
   final bool darkMode;
   final VoidCallback onToggleDark;
+  final bool showDelete;
+  final Future<void> Function()? onDelete;
   const _ActionBar({
     required this.onPickImage,
     required this.onShuffleIncorrect,
@@ -1935,6 +2037,8 @@ class _ActionBar extends StatelessWidget {
     required this.dimension,
     required this.darkMode,
     required this.onToggleDark,
+    this.showDelete = false,
+    this.onDelete,
   });
   @override
   Widget build(BuildContext context) {
@@ -2002,6 +2106,23 @@ class _ActionBar extends StatelessWidget {
               baseColor: const Color(0xFFFF78D5),
             ),
             // دکمه حالت کوررنگی حذف شد
+            if (showDelete && onDelete != null)
+              _CircularGlassButton(
+                icon: const Icon(Icons.delete_forever_outlined),
+                onTap: () async {
+                  try {
+                    await onDelete!();
+                  } catch (e) {
+                    final ctx = context;
+                    // تلاش برای نمایش خطا به کاربر
+                    ScaffoldMessenger.maybeOf(ctx)?.showSnackBar(
+                      SnackBar(content: Text('خطا در حذف عکس: $e')),
+                    );
+                  }
+                },
+                tooltip: 'حذف این عکس',
+                baseColor: const Color(0xFFEF5350),
+              ),
           ],
         ),
       ),
