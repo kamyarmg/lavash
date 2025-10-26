@@ -514,7 +514,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       _clearGameState();
       _reset(shuffle: true);
       _buildSlices();
-
     } catch (e) {
       if (!mounted) return;
       _showSnack('خطا در بارگذاری تصویر: $e');
@@ -605,6 +604,192 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
+  }
+
+  void _showHelp() {
+    final ctx = _navKey.currentContext ?? context;
+    showModalBottomSheet<void>(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(ctx).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (c) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.62,
+            minChildSize: 0.32,
+            maxChildSize: 0.95,
+            builder: (context, sc) => Directionality(
+              textDirection: TextDirection.rtl,
+              child: SingleChildScrollView(
+                controller: sc,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 44,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.36),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'نحوه بازی:',
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.vazirmatn(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'تصویر (انتخابی شما یاانتخاب شده توسط برنامه)به قطعاتی که شما تنظیم کرده‌اید(پیش فرض ۳ در ۳) به همراه یک خانه خالی تقسیم می‌شود. با زدن هر قطعهٔ مجاور خانهٔ خالی آن قطعه جایگزین می‌شود. هدف این است که همهٔ قطعات را به جای درستشان برگردانید و تصویر اصلی را درست کنید.',
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.vazirmatn(),
+                      ),
+                      const SizedBox(height: 12),
+
+                      Text(
+                        'دکمه‌ها و امکانات:',
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.vazirmatn(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Controls with icons
+                      _helpItemRow(
+                        Icons.image_outlined,
+                        const Color(0xFF34C3FF),
+                        'انتخاب تصویر',
+                        'از گالری عکسی انتخاب کنید تا بازی جدید با عکس انتخابی شما شروع شود. عکس انتخابی شما ذخیره میشود تا بعدا نیز استفاده شود.',
+                      ),
+                      _helpItemRow(
+                        Icons.auto_fix_high,
+                        const Color(0xFF9B6BFF),
+                        'تغییر نامرتب‌ها',
+                        'چند قطعهٔ نامرتب را جابه‌جا می‌کند تا چیدمان عوض شود.',
+                      ),
+                      _helpItemRow(
+                        Icons.refresh,
+                        const Color(0xFFFF5A5F),
+                        'شروع دوباره',
+                        'بازی را از ابتدا و با یک تصویر رندم شروع می‌کند.',
+                      ),
+                      _helpItemRow(
+                        Icons.grid_on,
+                        const Color(0xFF58D66D),
+                        'ابعاد',
+                        'اندازهٔ پازل را بین ۳×۳، ۴×۴، یا ۵×۵ تغییر دهید.',
+                      ),
+                      _helpItemRow(
+                        Icons.dark_mode,
+                        const Color(0xFFFF78D5),
+                        'حالت تیره/روشن',
+                        'تم برنامه را بین حالت تیره و روشن عوض می‌کند.',
+                      ),
+                      _helpItemRow(
+                        Icons.delete_forever_outlined,
+                        const Color(0xFFEF5350),
+                        'حذف عکس',
+                        'برای تصاویری که کاربر انتخاب کرده فعال است و می‌توانید تصاویر انتخابی خودتان را حذف کنید.',
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'امتیاز و زمان:',
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.vazirmatn(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'در پایان بازی و در صورت برنده شدن، تعداد حرکت‌ها و زمان صرف‌شده نمایش داده می‌شود.',
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.vazirmatn(),
+                      ),
+                      const SizedBox(height: 12),
+
+                      Text(
+                        'نکات مفید:',
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.vazirmatn(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '• در صورتیکه تایلی در جای مناسب و درست خود قرار گیرد هاله‌ای روشن دور آن روشن میشود.\n• تنظمیات انتخابی شما برای تم یا/ابعاد/تصاویر انتخابی شما ذخیره میشود تا دفعات بعدی هم استفاده شود.\n• بازی ذخیره می‌شود و می‌توانید بعداً از همان جایی که خارج شده‌اید ادامه دهید یا بازدن شروع دوباره بازی جدیدی را آغاز کنید.',
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.vazirmatn(),
+                      ),
+                      const SizedBox(height: 18),
+
+                      FilledButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(
+                          'بستن',
+                          style: GoogleFonts.vazirmatn(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _helpItemRow(IconData icon, Color color, String title, String desc) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.15),
+              border: Border.all(color: color.withValues(alpha: 0.6)),
+            ),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  title,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(desc, textAlign: TextAlign.right),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _reset({bool shuffle = false}) {
@@ -1030,6 +1215,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   dimension: dimension,
                   darkMode: darkMode,
                   onToggleDark: _toggleDark,
+                  onHelp: _showHelp,
                   showDelete: (_selectedId?.startsWith('USER:') ?? false),
                   onDelete: _confirmAndDeleteSelectedUserImage,
                 ),
@@ -1893,6 +2079,7 @@ class _ActionBar extends StatelessWidget {
   final int dimension;
   final bool darkMode;
   final VoidCallback onToggleDark;
+  final VoidCallback? onHelp;
   final bool showDelete;
   final Future<void> Function()? onDelete;
   const _ActionBar({
@@ -1903,6 +2090,7 @@ class _ActionBar extends StatelessWidget {
     required this.dimension,
     required this.darkMode,
     required this.onToggleDark,
+    this.onHelp,
     this.showDelete = false,
     this.onDelete,
   });
@@ -1967,6 +2155,14 @@ class _ActionBar extends StatelessWidget {
               tooltip: darkMode ? 'حالت روشن' : 'حالت تیره',
               baseColor: const Color(0xFFFF78D5),
             ),
+
+            if (onHelp != null)
+              _CircularGlassButton(
+                icon: const Icon(Icons.help_outline),
+                onTap: onHelp!,
+                tooltip: 'راهنما',
+                baseColor: const Color(0xFF34C3FF),
+              ),
 
             if (showDelete && onDelete != null)
               _CircularGlassButton(
