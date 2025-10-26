@@ -1190,7 +1190,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
 
               if ((MediaQuery.of(context).size.height /
                       MediaQuery.of(context).size.width) >
-                  1.5)
+                  2)
                 Positioned(
                   left: 0,
                   right: 0,
