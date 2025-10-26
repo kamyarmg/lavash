@@ -288,8 +288,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     if (changed && mounted) setState(() {});
   }
 
-  void _toggleDark() async {
-    setState(() => darkMode = !darkMode);
+  Future<void> _setDark(bool value) async {
+    if (darkMode == value) return;
+    setState(() => darkMode = value);
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_kPrefDark, darkMode);
   }
@@ -638,7 +639,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           width: 44,
                           height: 5,
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.36),
+                            color: Colors.grey.withValues(alpha: 0.36),
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
@@ -689,16 +690,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                         'بازی را از ابتدا و با یک تصویر رندم شروع می‌کند.',
                       ),
                       _helpItemRow(
-                        Icons.grid_on,
-                        const Color(0xFF58D66D),
-                        'ابعاد',
-                        'اندازهٔ پازل را بین ۳×۳، ۴×۴، یا ۵×۵ تغییر دهید.',
-                      ),
-                      _helpItemRow(
-                        Icons.dark_mode,
-                        const Color(0xFFFF78D5),
-                        'حالت تیره/روشن',
-                        'تم برنامه را بین حالت تیره و روشن عوض می‌کند.',
+                        Icons.settings,
+                        const Color(0xFF607D8B),
+                        'تنظیمات',
+                        'از طریق منوی تنظیمات می‌توانید حالت روشن/تیره و رنگ تم را تغییر دهید و ابعاد پازل را بین ۳×۳، ۴×۴ یا ۵×۵ تنظیم کنید.',
                       ),
                       _helpItemRow(
                         Icons.delete_forever_outlined,
@@ -813,6 +808,122 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     _loadRecords();
 
     SharedPreferences.getInstance().then((sp) => sp.setInt(_kPrefDim, d));
+  }
+
+  void _openSettings() {
+    final ctx = _navKey.currentContext ?? context;
+    showModalBottomSheet<void>(
+      context: ctx,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (c) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.45,
+            minChildSize: 0.30,
+            maxChildSize: 0.80,
+            builder: (context, sc) => Directionality(
+              textDirection: TextDirection.rtl,
+              child: SingleChildScrollView(
+                controller: sc,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                  child: StatefulBuilder(
+                    builder: (context, setSheet) {
+                      bool isDark = darkMode;
+                      int dim = dimension;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Align(
+                            alignment: Alignment.center,
+                            child: Container(
+                              width: 44,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withValues(alpha: 0.36),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'تنظیمات',
+                            textAlign: TextAlign.right,
+                            style: GoogleFonts.vazirmatn(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SwitchListTile(
+                            title: Text(
+                              'حالت تیره',
+                              style: GoogleFonts.vazirmatn(),
+                            ),
+                            value: isDark,
+                            onChanged: (v) async {
+                              setSheet(() => isDark = v);
+                              await _setDark(v);
+                            },
+                            secondary: const Icon(Icons.dark_mode),
+                            controlAffinity: ListTileControlAffinity.leading,
+                          ),
+                          const SizedBox(height: 6),
+                          const Divider(),
+                          const SizedBox(height: 6),
+                          Text(
+                            'ابعاد پازل',
+                            style: GoogleFonts.vazirmatn(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              for (final d in const [3, 4, 5])
+                                ChoiceChip(
+                                  label: Text(
+                                    '🧩 ${_toFaDigits('$d×$d')}',
+                                    style: GoogleFonts.vazirmatn(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  selected: dim == d,
+                                  onSelected: (_) {
+                                    setSheet(() => dim = d);
+                                    _changeDimension(d);
+                                  },
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          FilledButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: Text(
+                              'بستن',
+                              style: GoogleFonts.vazirmatn(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _onTileTap(int tileArrayIndex) {
@@ -1211,10 +1322,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   onShuffleIncorrect: () =>
                       setState(() => board.partialShuffleIncorrect(rng)),
                   onReset: () => _loadRandomAssetImage(),
-                  onChangeDim: _changeDimension,
-                  dimension: dimension,
-                  darkMode: darkMode,
-                  onToggleDark: _toggleDark,
+                  onOpenSettings: _openSettings,
                   onHelp: _showHelp,
                   showDelete: (_selectedId?.startsWith('USER:') ?? false),
                   onDelete: _confirmAndDeleteSelectedUserImage,
@@ -2075,10 +2183,7 @@ class _ActionBar extends StatelessWidget {
   final VoidCallback onPickImage;
   final VoidCallback onShuffleIncorrect;
   final VoidCallback onReset;
-  final void Function(int) onChangeDim;
-  final int dimension;
-  final bool darkMode;
-  final VoidCallback onToggleDark;
+  final VoidCallback onOpenSettings;
   final VoidCallback? onHelp;
   final bool showDelete;
   final Future<void> Function()? onDelete;
@@ -2086,10 +2191,7 @@ class _ActionBar extends StatelessWidget {
     required this.onPickImage,
     required this.onShuffleIncorrect,
     required this.onReset,
-    required this.onChangeDim,
-    required this.dimension,
-    required this.darkMode,
-    required this.onToggleDark,
+    required this.onOpenSettings,
     this.onHelp,
     this.showDelete = false,
     this.onDelete,
@@ -2123,37 +2225,11 @@ class _ActionBar extends StatelessWidget {
               tooltip: 'شروع دوباره',
               baseColor: const Color(0xFFFF5A5F),
             ),
-            PopupMenuButton<int>(
-              tooltip: 'ابعاد',
-              onSelected: onChangeDim,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              itemBuilder: (_) => [3, 4, 5]
-                  .map(
-                    (e) => PopupMenuItem(
-                      value: e,
-                      child: Text(
-                        '🧩 ${_toFaDigits('$e×$e')}',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  )
-                  .toList(),
-              child: IgnorePointer(
-                child: _CircularGlassButton(
-                  icon: const Icon(Icons.grid_on),
-                  onTap: () {},
-                  tooltip: 'ابعاد',
-                  baseColor: const Color(0xFF58D66D),
-                ),
-              ),
-            ),
             _CircularGlassButton(
-              icon: Icon(darkMode ? Icons.light_mode : Icons.dark_mode),
-              onTap: onToggleDark,
-              tooltip: darkMode ? 'حالت روشن' : 'حالت تیره',
-              baseColor: const Color(0xFFFF78D5),
+              icon: const Icon(Icons.settings),
+              onTap: onOpenSettings,
+              tooltip: 'تنظیمات',
+              baseColor: const Color(0xFF607D8B),
             ),
 
             if (onHelp != null)
@@ -2168,12 +2244,11 @@ class _ActionBar extends StatelessWidget {
               _CircularGlassButton(
                 icon: const Icon(Icons.delete_forever_outlined),
                 onTap: () async {
+                  final messenger = ScaffoldMessenger.maybeOf(context);
                   try {
                     await onDelete!();
                   } catch (e) {
-                    final ctx = context;
-
-                    ScaffoldMessenger.maybeOf(ctx)?.showSnackBar(
+                    messenger?.showSnackBar(
                       SnackBar(content: Text('خطا در حذف عکس: $e')),
                     );
                   }
@@ -2254,6 +2329,147 @@ class _WinToast extends StatelessWidget {
             timeText: timeText,
             accent: theme.colorScheme.primary,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class SettingsPage extends StatelessWidget {
+  final bool darkMode;
+  final int themeIndex;
+  final List<Color> seedPalette;
+  final int dimension;
+  final ValueChanged<bool> onDarkChanged;
+  final ValueChanged<int> onThemeIndexChanged;
+  final ValueChanged<int> onDimensionChanged;
+
+  const SettingsPage({
+    super.key,
+    required this.darkMode,
+    required this.themeIndex,
+    required this.seedPalette,
+    required this.dimension,
+    required this.onDarkChanged,
+    required this.onThemeIndexChanged,
+    required this.onDimensionChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'تنظیمات',
+          style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w800),
+        ),
+        centerTitle: true,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          Text('تم', style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          SwitchListTile(
+            title: Text('حالت تیره', style: GoogleFonts.vazirmatn()),
+            value: darkMode,
+            onChanged: onDarkChanged,
+            secondary: const Icon(Icons.dark_mode),
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'رنگ تم',
+            style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (int i = 0; i < seedPalette.length; i++)
+                _ThemeColorDot(
+                  color: seedPalette[i],
+                  selected: i == themeIndex,
+                  onTap: () => onThemeIndexChanged(i),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Divider(height: 24),
+          const SizedBox(height: 8),
+          Text(
+            'ابعاد پازل',
+            style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final d in const [3, 4, 5])
+                ChoiceChip(
+                  label: Text(
+                    '🧩 ${_toFaDigits('$d×$d')}',
+                    style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
+                  ),
+                  selected: dimension == d,
+                  onSelected: (_) => onDimensionChanged(d),
+                ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.check),
+            label: Text(
+              'بستن',
+              style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeColorDot extends StatelessWidget {
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+  const _ThemeColorDot({
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final border = selected ? Colors.black : Colors.white;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [
+              color.withValues(alpha: 0.9),
+              color.withValues(alpha: 0.6),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: border.withValues(alpha: 0.9), width: 2),
+          boxShadow: [
+            if (selected)
+              BoxShadow(
+                color: color.withValues(alpha: 0.5),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+          ],
         ),
       ),
     );
