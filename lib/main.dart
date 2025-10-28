@@ -693,7 +693,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                         Icons.settings,
                         const Color(0xFF607D8B),
                         'تنظیمات',
-                        'از طریق منوی تنظیمات می‌توانید حالت روشن/تیره و رنگ تم را تغییر دهید و ابعاد پازل را بین ۳×۳، ۴×۴ یا ۵×۵ تنظیم کنید.',
+                        'از طریق منوی تنظیمات می‌توانید حالت روشن/تیره و رنگ تم را تغییر دهید و ابعاد پازل را بین ۳ در ۳، ۴ در ۴ یا ۵ در ۵ تنظیم کنید.',
                       ),
                       _helpItemRow(
                         Icons.delete_forever_outlined,
@@ -890,7 +890,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                               for (final d in const [3, 4, 5])
                                 ChoiceChip(
                                   label: Text(
-                                    '🧩 ${_toFaDigits('$d×$d')}',
+                                    '🧩 ${_toFaDigits('$d در $d')}',
                                     style: GoogleFonts.vazirmatn(
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -2410,7 +2410,7 @@ class SettingsPage extends StatelessWidget {
               for (final d in const [3, 4, 5])
                 ChoiceChip(
                   label: Text(
-                    '🧩 ${_toFaDigits('$d×$d')}',
+                    '🧩 ${_toFaDigits('$d در $d')}',
                     style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
                   ),
                   selected: dimension == d,
