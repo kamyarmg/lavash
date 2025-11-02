@@ -39,6 +39,12 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Prepare Android local.properties
+        shell: bash
+        run: |
+          echo "flutter.sdk=${FLUTTER_HOME:-$FLUTTER_ROOT}" > android/local.properties
+          if [[ -n "${ANDROID_SDK_ROOT:-}" ]]; then echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties; fi
+
       - name: Analyze Dart/Flutter code
         run: flutter analyze
 
