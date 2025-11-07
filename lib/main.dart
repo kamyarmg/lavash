@@ -1795,11 +1795,7 @@ class _TileContent extends StatelessWidget {
               blurRadius: 18,
               spreadRadius: 1,
             ),
-            const BoxShadow(
-              color: Color(0xFFFF6EC7),
-              blurRadius: 32,
-              spreadRadius: -2,
-            ),
+            const BoxShadow(color: Color(0xFF4CAF50), spreadRadius: -2),
           ]
         : [
             BoxShadow(
@@ -1817,7 +1813,7 @@ class _TileContent extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isCorrect
-              ? const Color(0xFFFF6EC7).withValues(alpha: 0.9)
+              ? const Color(0xFF4CAF50).withValues(alpha: 0.9)
               : Colors.white.withValues(alpha: 0.45),
           width: isCorrect ? 2.2 : 1.2,
         ),
