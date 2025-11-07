@@ -654,7 +654,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 8),
 
-                      // Controls with icons
                       _helpItemRow(
                         Icons.image_outlined,
                         const Color(0xFF34C3FF),
@@ -923,12 +922,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         _saveRecordIfBetter();
 
         _saveGameState(solved: true);
-        _justSolved = true;
-        _solveParticles.forward(from: 0);
+        _justSolved = false;
         HapticFeedback.mediumImpact();
 
         setState(() => _showWinOverlay = true);
-        _winBanner.forward(from: 0);
       }
     }
   }
@@ -1327,23 +1324,16 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
-                      _winBanner.reverse();
-                      Future.delayed(const Duration(milliseconds: 280), () {
-                        if (!mounted) return;
-                        setState(() => _showWinOverlay = false);
-                      });
+                      if (!mounted) return;
+                      setState(() => _showWinOverlay = false);
                     },
                     child: Center(
-                      child: _WinToast(
-                        animation: CurvedAnimation(
-                          parent: _winBanner,
-                          curve: Curves.easeOutBack,
-                          reverseCurve: Curves.easeIn,
-                        ),
+                      child: _WhiteWinBox(
                         title: 'شما برنده شدید! 🎉',
                         subtitle: 'برای ادامه کلیک کنید',
                         movesText: _toFaDigits(moves),
                         timeText: _formatTime(seconds),
+                        accent: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),
@@ -2273,51 +2263,6 @@ class _AnimatedTapScaleState extends State<_AnimatedTapScale> {
   }
 }
 
-class _WinToast extends StatelessWidget {
-  final Animation<double> animation;
-  final String title;
-  final String subtitle;
-  final String movesText;
-  final String timeText;
-  const _WinToast({
-    required this.animation,
-    required this.title,
-    required this.subtitle,
-    required this.movesText,
-    required this.timeText,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scale = Tween<double>(begin: 0.85, end: 1.0).animate(animation);
-    final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
-    final slide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
-
-    return FadeTransition(
-      opacity: fade,
-      child: SlideTransition(
-        position: slide,
-        child: ScaleTransition(
-          scale: scale,
-          child: _WhiteWinBox(
-            title: title,
-            subtitle: subtitle,
-            movesText: movesText,
-            timeText: timeText,
-            accent: theme.colorScheme.primary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Removed old SettingsPage/_ThemeColorDot (unused) to keep codebase lean.
-
 class _WhiteWinBox extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -2495,7 +2440,6 @@ class ParticleBurstPainter extends CustomPainter {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // قفل کردن جهت نمایش فقط حالت پرتره (ایستاده)
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const MainApp());
 }
