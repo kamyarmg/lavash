@@ -2513,6 +2513,9 @@ class ParticleBurstPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // قفل کردن جهت نمایش فقط حالت پرتره (ایستاده)
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const MainApp());
 }
