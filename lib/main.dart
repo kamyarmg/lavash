@@ -517,7 +517,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       _buildSlices();
     } catch (e) {
       if (!mounted) return;
-      _showSnack('خطا در بارگذاری تصویر: $e');
     }
   }
 
@@ -584,26 +583,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         _clearGameState();
         _reset(shuffle: true);
         _buildSlices();
-        _showSnack('عکس حذف شد و بازی جدید شروع شد');
       } catch (_) {
         await _loadRandomAssetImage();
-        _showSnack('عکس حذف شد و بازی جدید شروع شد');
       }
     } else {
       await _loadRandomAssetImage();
-      _showSnack('عکس حذف شد و بازی جدید شروع شد');
-    }
-  }
-
-  void _showSnack(String text) {
-    final sm = _scaffoldKey.currentState;
-    if (sm != null) {
-      sm.clearSnackBars();
-      sm.showSnackBar(SnackBar(content: Text(text)));
-      return;
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
 
