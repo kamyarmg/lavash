@@ -340,14 +340,42 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
 
   Future<void> _loadRandomAssetImage() async {
     try {
+      // بارگذاری لیست تصاویر پوشهٔ assets در صورت نیاز
       await _loadAssetImagesList();
 
-      if (_assetImages.isEmpty) {
+      // انتخاب رندم از بین تصاویر کاربر و تصاویر assets
+      final int userCount = _userImages.length;
+      final int assetCount = _assetImages.length;
+      final int total = userCount + assetCount;
+      if (total == 0) {
         return;
       }
 
-      final pick = _assetImages[rng.nextInt(_assetImages.length)];
-      await _loadAssetImage(pick);
+      final pickIdx = rng.nextInt(total);
+      if (pickIdx < userCount) {
+        // انتخاب از تصاویر کاربر
+        final idx = pickIdx;
+        final data = _userImages[idx];
+        final codec = await ui.instantiateImageCodec(data);
+        final frame = await codec.getNextFrame();
+        if (!mounted) return;
+        setState(() {
+          image = frame.image;
+          _selectedId = _userId(idx);
+        });
+        final sp = await SharedPreferences.getInstance();
+        await sp.setString(_kPrefLastImage, 'B64://${base64Encode(data)}');
+        _clearGameState();
+        _reset(shuffle: true);
+        _buildSlices();
+      } else {
+        // انتخاب از تصاویر assets
+        final assetIdx = pickIdx - userCount;
+        if (assetIdx >= 0 && assetIdx < assetCount) {
+          final pick = _assetImages[assetIdx];
+          await _loadAssetImage(pick);
+        }
+      }
     } catch (e) {
       return;
     }
