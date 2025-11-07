@@ -193,6 +193,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   int moves = 0;
 
   bool darkMode = false;
+  bool _showTileNumbers = false;
 
   bool _justSolved = false;
   late AnimationController _solveParticles;
@@ -221,6 +222,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   static const String _kPrefDim = 'settings.dimension';
   static const String _kPrefLastImage = 'settings.lastImage';
   static const String _kPrefUserImages = 'settings.userImages';
+  static const String _kPrefShowNumbers = 'settings.showNumbers';
 
   static const String _kGameDim = 'game.dimension';
   static const String _kGameTiles = 'game.tiles';
@@ -295,16 +297,21 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     await sp.setBool(_kPrefDark, darkMode);
   }
 
+  Future<void> _setShowNumbers(bool value) async {
+    if (_showTileNumbers == value) return;
+    setState(() => _showTileNumbers = value);
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_kPrefShowNumbers, _showTileNumbers);
+  }
+
   List<String> _assetImages = [];
   bool _imagesLoaded = false;
 
   Future<void> _loadAssetImagesList() async {
     if (_imagesLoaded) return;
-
     try {
       final manifestContent = await rootBundle.loadString('AssetManifest.json');
       final Map<String, dynamic> manifestMap = json.decode(manifestContent);
-
       final imageAssets = manifestMap.keys
           .where((String key) => key.startsWith('assets/images/'))
           .where(
@@ -315,12 +322,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                 key.toLowerCase().endsWith('.webp'),
           )
           .toList();
-
       _assetImages = imageAssets;
       _imagesLoaded = true;
-
       _assetImages.sort();
-
       if (mounted) setState(() {});
     } catch (e) {
       _assetImages = [
@@ -819,6 +823,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                     builder: (context, setSheet) {
                       bool isDark = darkMode;
                       int dim = dimension;
+                      bool showNums = _showTileNumbers;
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -854,6 +859,20 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                               await _setDark(v);
                             },
                             secondary: const Icon(Icons.dark_mode),
+                            controlAffinity: ListTileControlAffinity.leading,
+                          ),
+                          const SizedBox(height: 6),
+                          SwitchListTile(
+                            title: Text(
+                              'نمایش شماره تایل‌ها',
+                              style: GoogleFonts.vazirmatn(),
+                            ),
+                            value: showNums,
+                            onChanged: (v) async {
+                              setSheet(() => showNums = v);
+                              await _setShowNumbers(v);
+                            },
+                            secondary: const Icon(Icons.pin),
                             controlAffinity: ListTileControlAffinity.leading,
                           ),
                           const SizedBox(height: 6),
@@ -973,6 +992,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     final savedDim = sp.getInt(_kPrefDim);
     final savedImage = sp.getString(_kPrefLastImage);
     final savedThemeIdx = sp.getInt(_kPrefThemeIdx);
+    final savedShowNumbers = sp.getBool(_kPrefShowNumbers);
 
     final savedGame = await _readSavedGame();
 
@@ -982,6 +1002,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         savedThemeIdx < _seedPalette.length) {
       _themeIdx = savedThemeIdx;
     }
+    if (savedShowNumbers != null) _showTileNumbers = savedShowNumbers;
 
     if (savedGame != null && !savedGame.solved) {
       dimension = savedGame.dim;
@@ -1279,6 +1300,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                     image: image,
                                     onTileTap: _onTileTap,
                                     slices: _slices,
+                                    showNumbers: _showTileNumbers,
                                   ),
                                 ),
                               ),
@@ -1682,6 +1704,7 @@ class _PuzzleView extends StatelessWidget {
   final ui.Image? image;
   final void Function(int tileArrayIndex) onTileTap;
   final List<ui.Image?>? slices;
+  final bool showNumbers;
 
   const _PuzzleView({
     required this.board,
@@ -1689,6 +1712,7 @@ class _PuzzleView extends StatelessWidget {
     required this.image,
     required this.onTileTap,
     required this.slices,
+    required this.showNumbers,
   });
 
   @override
@@ -1732,6 +1756,7 @@ class _PuzzleView extends StatelessWidget {
     final correctPos = tile.correctIndex;
     final correctRow = correctPos ~/ dimension;
     final correctCol = correctPos % dimension;
+    final numberText = showNumbers ? _toFaDigits(tile.correctIndex + 1) : null;
 
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 200),
@@ -1753,6 +1778,7 @@ class _PuzzleView extends StatelessWidget {
               slices != null && tile.correctIndex < (dimension * dimension - 1)
               ? slices![tile.correctIndex]
               : null,
+          numberText: numberText,
         ),
       ),
     );
@@ -1766,6 +1792,7 @@ class _TileContent extends StatelessWidget {
   final int correctCol;
   final bool isCorrect;
   final ui.Image? slice;
+  final String? numberText;
 
   const _TileContent({
     required this.image,
@@ -1774,6 +1801,7 @@ class _TileContent extends StatelessWidget {
     required this.correctCol,
     required this.isCorrect,
     required this.slice,
+    required this.numberText,
   });
 
   @override
@@ -1832,6 +1860,44 @@ class _TileContent extends StatelessWidget {
                           ),
                         )
                       : const SizedBox.shrink())),
+            if (numberText != null)
+              Positioned(
+                top: 4,
+                left: 4,
+                child: Builder(
+                  builder: (context) {
+                    final numFont = dimension <= 3
+                        ? 14.0
+                        : (dimension == 4 ? 12.5 : 11.0);
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.28),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            numberText!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.vazirmatn(
+                              fontSize: numFont,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.black,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
           ],
         ),
       ),
