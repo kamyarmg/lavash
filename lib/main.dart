@@ -2114,71 +2114,6 @@ class _RainbowTitle extends StatelessWidget {
   }
 }
 
-class _CircularGlassButton extends StatelessWidget {
-  final Widget icon;
-  final VoidCallback onTap;
-  final String? tooltip;
-  final Color? baseColor;
-  const _CircularGlassButton({
-    required this.icon,
-    required this.onTap,
-    this.tooltip,
-    this.baseColor,
-  });
-  @override
-  Widget build(BuildContext context) {
-    final c = baseColor ?? (Theme.of(context).colorScheme.primary);
-    final bright = c.withValues(alpha: 0.95);
-    final soft = c.withValues(alpha: 0.55);
-    final btn = InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 260),
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: [bright, soft],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.85),
-            width: 1.6,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: c.withValues(alpha: 0.55),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-            BoxShadow(
-              color: Colors.white.withValues(alpha: 0.65),
-              blurRadius: 10,
-              spreadRadius: -4,
-            ),
-          ],
-        ),
-        child: IconTheme(
-          data: IconThemeData(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : Colors.black87,
-            size: 26,
-          ),
-          child: Center(child: icon),
-        ),
-      ),
-    );
-    if (tooltip != null) {
-      return Tooltip(message: tooltip!, child: btn);
-    }
-    return btn;
-  }
-}
-
 class _ActionBar extends StatelessWidget {
   final VoidCallback onPickImage;
   final VoidCallback onShuffleIncorrect;
@@ -2198,65 +2133,142 @@ class _ActionBar extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-      child: Center(
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 18,
-          runSpacing: 16,
-          children: [
-            _CircularGlassButton(
-              icon: const Icon(Icons.image_outlined),
-              onTap: onPickImage,
-              tooltip: 'انتخاب تصویر',
-              baseColor: const Color(0xFF34C3FF),
-            ),
-            _CircularGlassButton(
-              icon: const Icon(Icons.auto_fix_high),
-              onTap: onShuffleIncorrect,
-              tooltip: 'تغییر نامرتب‌ها',
-              baseColor: const Color(0xFF9B6BFF),
-            ),
-
-            _CircularGlassButton(
-              icon: const Icon(Icons.refresh),
-              onTap: onReset,
-              tooltip: 'شروع دوباره',
-              baseColor: const Color(0xFFFF5A5F),
-            ),
-            _CircularGlassButton(
-              icon: const Icon(Icons.settings),
-              onTap: onOpenSettings,
-              tooltip: 'تنظیمات',
-              baseColor: const Color(0xFF607D8B),
-            ),
-
-            if (onHelp != null)
-              _CircularGlassButton(
-                icon: const Icon(Icons.help_outline),
-                onTap: onHelp!,
-                tooltip: 'راهنما',
-                baseColor: const Color(0xFF34C3FF),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final onSurface = theme.colorScheme.onSurface;
+    final outline = theme.colorScheme.outlineVariant;
+    final primary = theme.colorScheme.primary;
+    final bgColor = isDark
+        ? Colors.black.withValues(alpha: 0.36)
+        : Colors.white.withValues(alpha: 0.78);
+    return SafeArea(
+      top: false,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            height: 72,
+            decoration: BoxDecoration(
+              color: bgColor,
+              border: Border(
+                top: BorderSide(color: outline.withValues(alpha: 0.6)),
               ),
-
-            if (showDelete && onDelete != null)
-              _CircularGlassButton(
-                icon: const Icon(Icons.delete_forever_outlined),
-                onTap: () async {
-                  final messenger = ScaffoldMessenger.maybeOf(context);
-                  try {
-                    await onDelete!();
-                  } catch (e) {
-                    messenger?.showSnackBar(
-                      SnackBar(content: Text('خطا در حذف عکس: $e')),
-                    );
-                  }
-                },
-                tooltip: 'حذف این عکس',
-                baseColor: const Color(0xFFEF5350),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                  blurRadius: 24,
+                  offset: const Offset(0, -6),
+                ),
+              ],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  bgColor,
+                  Color.alphaBlend(primary.withValues(alpha: 0.06), bgColor),
+                ],
               ),
-          ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _BarIconButton(
+                  icon: Icons.image_outlined,
+                  label: 'عکس',
+                  onTap: onPickImage,
+                  color: onSurface.withValues(alpha: 0.95),
+                ),
+                _BarIconButton(
+                  icon: Icons.auto_fix_high,
+                  label: 'جابه‌جایی',
+                  onTap: onShuffleIncorrect,
+                  color: onSurface.withValues(alpha: 0.95),
+                ),
+                _BarIconButton(
+                  icon: Icons.refresh,
+                  label: 'دوباره',
+                  onTap: onReset,
+                  color: onSurface.withValues(alpha: 0.95),
+                ),
+                _BarIconButton(
+                  icon: Icons.settings,
+                  label: 'تنظیمات',
+                  onTap: onOpenSettings,
+                  color: onSurface.withValues(alpha: 0.95),
+                ),
+                if (onHelp != null)
+                  _BarIconButton(
+                    icon: Icons.help_outline,
+                    label: 'راهنما',
+                    onTap: onHelp!,
+                    color: onSurface.withValues(alpha: 0.95),
+                  ),
+                if (showDelete && onDelete != null)
+                  _BarIconButton(
+                    icon: Icons.delete_forever_outlined,
+                    label: 'حذف',
+                    onTap: () async {
+                      final messenger = ScaffoldMessenger.maybeOf(context);
+                      try {
+                        await onDelete!();
+                      } catch (e) {
+                        messenger?.showSnackBar(
+                          SnackBar(content: Text('خطا در حذف عکس: $e')),
+                        );
+                      }
+                    },
+                    color: onSurface.withValues(alpha: 0.95),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BarIconButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color color;
+  const _BarIconButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        splashColor: color.withValues(alpha: 0.18),
+        highlightColor: color.withValues(alpha: 0.10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 26),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: GoogleFonts.vazirmatn(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: color.withValues(alpha: 0.9),
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
