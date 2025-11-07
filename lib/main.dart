@@ -1289,17 +1289,15 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                               SizedBox(height: verticalSpacing),
                               Hero(
                                 tag: 'board',
-                                child: _FancyFrame(
-                                  child: SizedBox(
-                                    width: maxBoard,
-                                    height: maxBoard,
-                                    child: _PuzzleView(
-                                      board: board,
-                                      dimension: dimension,
-                                      image: image,
-                                      onTileTap: _onTileTap,
-                                      slices: _slices,
-                                    ),
+                                child: SizedBox(
+                                  width: maxBoard,
+                                  height: maxBoard,
+                                  child: _PuzzleView(
+                                    board: board,
+                                    dimension: dimension,
+                                    image: image,
+                                    onTileTap: _onTileTap,
+                                    slices: _slices,
                                   ),
                                 ),
                               ),
@@ -1701,15 +1699,6 @@ class _SquareAwareThumb extends StatelessWidget {
       ),
     );
     return square ? AspectRatio(aspectRatio: 1, child: tile) : tile;
-  }
-}
-
-class _FancyFrame extends StatelessWidget {
-  final Widget child;
-  const _FancyFrame({required this.child});
-  @override
-  Widget build(BuildContext context) {
-    return child;
   }
 }
 
@@ -2347,146 +2336,7 @@ class _WinToast extends StatelessWidget {
   }
 }
 
-class SettingsPage extends StatelessWidget {
-  final bool darkMode;
-  final int themeIndex;
-  final List<Color> seedPalette;
-  final int dimension;
-  final ValueChanged<bool> onDarkChanged;
-  final ValueChanged<int> onThemeIndexChanged;
-  final ValueChanged<int> onDimensionChanged;
-
-  const SettingsPage({
-    super.key,
-    required this.darkMode,
-    required this.themeIndex,
-    required this.seedPalette,
-    required this.dimension,
-    required this.onDarkChanged,
-    required this.onThemeIndexChanged,
-    required this.onDimensionChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'تنظیمات',
-          style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w800),
-        ),
-        centerTitle: true,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          Text('تم', style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          SwitchListTile(
-            title: Text('حالت تیره', style: GoogleFonts.vazirmatn()),
-            value: darkMode,
-            onChanged: onDarkChanged,
-            secondary: const Icon(Icons.dark_mode),
-            controlAffinity: ListTileControlAffinity.leading,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'رنگ تم',
-            style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (int i = 0; i < seedPalette.length; i++)
-                _ThemeColorDot(
-                  color: seedPalette[i],
-                  selected: i == themeIndex,
-                  onTap: () => onThemeIndexChanged(i),
-                ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          const Divider(height: 24),
-          const SizedBox(height: 8),
-          Text(
-            'ابعاد پازل',
-            style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (final d in const [3, 4, 5])
-                ChoiceChip(
-                  label: Text(
-                    '🧩 ${_toFaDigits('$d در $d')}',
-                    style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
-                  ),
-                  selected: dimension == d,
-                  onSelected: (_) => onDimensionChanged(d),
-                ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.check),
-            label: Text(
-              'بستن',
-              style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ThemeColorDot extends StatelessWidget {
-  final Color color;
-  final bool selected;
-  final VoidCallback onTap;
-  const _ThemeColorDot({
-    required this.color,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final border = selected ? Colors.black : Colors.white;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: [
-              color.withValues(alpha: 0.9),
-              color.withValues(alpha: 0.6),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: border.withValues(alpha: 0.9), width: 2),
-          boxShadow: [
-            if (selected)
-              BoxShadow(
-                color: color.withValues(alpha: 0.5),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// Removed old SettingsPage/_ThemeColorDot (unused) to keep codebase lean.
 
 class _WhiteWinBox extends StatelessWidget {
   final String title;
