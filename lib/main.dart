@@ -364,7 +364,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
           _selectedId = _userId(idx);
         });
         final sp = await SharedPreferences.getInstance();
-        await sp.setString(_kPrefLastImage, 'B64://${base64Encode(data)}');
+        if (idx >= 0 && idx < _userEntries.length) {
+          await sp.setString(_kPrefLastImage, _userEntries[idx]);
+        } else {
+          await sp.setString(_kPrefLastImage, 'B64://${base64Encode(data)}');
+        }
         _clearGameState();
         _reset(shuffle: true);
         _buildSlices();
@@ -611,7 +615,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
           _selectedId = _userId(0);
         });
         final sp = await SharedPreferences.getInstance();
-        await sp.setString(_kPrefLastImage, 'B64://${base64Encode(data)}');
+        if (_userEntries.isNotEmpty) {
+          await sp.setString(_kPrefLastImage, _userEntries[0]);
+        } else {
+          await sp.setString(_kPrefLastImage, 'B64://${base64Encode(data)}');
+        }
         _clearGameState();
         _reset(shuffle: true);
         _buildSlices();
@@ -1302,10 +1310,20 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                         });
                                         final sp =
                                             await SharedPreferences.getInstance();
-                                        await sp.setString(
-                                          _kPrefLastImage,
-                                          'B64://${base64Encode(data)}',
-                                        );
+                                        if (idx < _userEntries.length) {
+                                          final originalEntry =
+                                              _userEntries[idx];
+                                          await sp.setString(
+                                            _kPrefLastImage,
+                                            originalEntry,
+                                          );
+                                        } else {
+                                          // Fallback (should not normally happen)
+                                          await sp.setString(
+                                            _kPrefLastImage,
+                                            'B64://${base64Encode(data)}',
+                                          );
+                                        }
                                         _clearGameState();
                                         _reset(shuffle: true);
                                         _buildSlices();
