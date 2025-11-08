@@ -193,6 +193,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   int moves = 0;
 
   bool darkMode = false;
+  bool _showTileNumbers = false;
 
   bool _justSolved = false;
   late AnimationController _solveParticles;
@@ -221,6 +222,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   static const String _kPrefDim = 'settings.dimension';
   static const String _kPrefLastImage = 'settings.lastImage';
   static const String _kPrefUserImages = 'settings.userImages';
+  static const String _kPrefShowNumbers = 'settings.showNumbers';
 
   static const String _kGameDim = 'game.dimension';
   static const String _kGameTiles = 'game.tiles';
@@ -295,16 +297,21 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     await sp.setBool(_kPrefDark, darkMode);
   }
 
+  Future<void> _setShowNumbers(bool value) async {
+    if (_showTileNumbers == value) return;
+    setState(() => _showTileNumbers = value);
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_kPrefShowNumbers, _showTileNumbers);
+  }
+
   List<String> _assetImages = [];
   bool _imagesLoaded = false;
 
   Future<void> _loadAssetImagesList() async {
     if (_imagesLoaded) return;
-
     try {
       final manifestContent = await rootBundle.loadString('AssetManifest.json');
       final Map<String, dynamic> manifestMap = json.decode(manifestContent);
-
       final imageAssets = manifestMap.keys
           .where((String key) => key.startsWith('assets/images/'))
           .where(
@@ -315,12 +322,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                 key.toLowerCase().endsWith('.webp'),
           )
           .toList();
-
       _assetImages = imageAssets;
       _imagesLoaded = true;
-
       _assetImages.sort();
-
       if (mounted) setState(() {});
     } catch (e) {
       _assetImages = [
@@ -336,14 +340,46 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
 
   Future<void> _loadRandomAssetImage() async {
     try {
+      // بارگذاری لیست تصاویر پوشهٔ assets در صورت نیاز
       await _loadAssetImagesList();
 
-      if (_assetImages.isEmpty) {
+      // انتخاب رندم از بین تصاویر کاربر و تصاویر assets
+      final int userCount = _userImages.length;
+      final int assetCount = _assetImages.length;
+      final int total = userCount + assetCount;
+      if (total == 0) {
         return;
       }
 
-      final pick = _assetImages[rng.nextInt(_assetImages.length)];
-      await _loadAssetImage(pick);
+      final pickIdx = rng.nextInt(total);
+      if (pickIdx < userCount) {
+        // انتخاب از تصاویر کاربر
+        final idx = pickIdx;
+        final data = _userImages[idx];
+        final codec = await ui.instantiateImageCodec(data);
+        final frame = await codec.getNextFrame();
+        if (!mounted) return;
+        setState(() {
+          image = frame.image;
+          _selectedId = _userId(idx);
+        });
+        final sp = await SharedPreferences.getInstance();
+        if (idx >= 0 && idx < _userEntries.length) {
+          await sp.setString(_kPrefLastImage, _userEntries[idx]);
+        } else {
+          await sp.setString(_kPrefLastImage, 'B64://${base64Encode(data)}');
+        }
+        _clearGameState();
+        _reset(shuffle: true);
+        _buildSlices();
+      } else {
+        // انتخاب از تصاویر assets
+        final assetIdx = pickIdx - userCount;
+        if (assetIdx >= 0 && assetIdx < assetCount) {
+          final pick = _assetImages[assetIdx];
+          await _loadAssetImage(pick);
+        }
+      }
     } catch (e) {
       return;
     }
@@ -517,7 +553,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       _buildSlices();
     } catch (e) {
       if (!mounted) return;
-      _showSnack('خطا در بارگذاری تصویر: $e');
     }
   }
 
@@ -580,30 +615,19 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
           _selectedId = _userId(0);
         });
         final sp = await SharedPreferences.getInstance();
-        await sp.setString(_kPrefLastImage, 'B64://${base64Encode(data)}');
+        if (_userEntries.isNotEmpty) {
+          await sp.setString(_kPrefLastImage, _userEntries[0]);
+        } else {
+          await sp.setString(_kPrefLastImage, 'B64://${base64Encode(data)}');
+        }
         _clearGameState();
         _reset(shuffle: true);
         _buildSlices();
-        _showSnack('عکس حذف شد و بازی جدید شروع شد');
       } catch (_) {
         await _loadRandomAssetImage();
-        _showSnack('عکس حذف شد و بازی جدید شروع شد');
       }
     } else {
       await _loadRandomAssetImage();
-      _showSnack('عکس حذف شد و بازی جدید شروع شد');
-    }
-  }
-
-  void _showSnack(String text) {
-    final sm = _scaffoldKey.currentState;
-    if (sm != null) {
-      sm.clearSnackBars();
-      sm.showSnackBar(SnackBar(content: Text(text)));
-      return;
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     }
   }
 
@@ -670,7 +694,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 8),
 
-                      // Controls with icons
                       _helpItemRow(
                         Icons.image_outlined,
                         const Color(0xFF34C3FF),
@@ -836,6 +859,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                     builder: (context, setSheet) {
                       bool isDark = darkMode;
                       int dim = dimension;
+                      bool showNums = _showTileNumbers;
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -871,6 +895,20 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                               await _setDark(v);
                             },
                             secondary: const Icon(Icons.dark_mode),
+                            controlAffinity: ListTileControlAffinity.leading,
+                          ),
+                          const SizedBox(height: 6),
+                          SwitchListTile(
+                            title: Text(
+                              'نمایش شماره تایل‌ها',
+                              style: GoogleFonts.vazirmatn(),
+                            ),
+                            value: showNums,
+                            onChanged: (v) async {
+                              setSheet(() => showNums = v);
+                              await _setShowNumbers(v);
+                            },
+                            secondary: const Icon(Icons.pin),
                             controlAffinity: ListTileControlAffinity.leading,
                           ),
                           const SizedBox(height: 6),
@@ -939,12 +977,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         _saveRecordIfBetter();
 
         _saveGameState(solved: true);
-        _justSolved = true;
-        _solveParticles.forward(from: 0);
+        _justSolved = false;
         HapticFeedback.mediumImpact();
 
         setState(() => _showWinOverlay = true);
-        _winBanner.forward(from: 0);
       }
     }
   }
@@ -992,6 +1028,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     final savedDim = sp.getInt(_kPrefDim);
     final savedImage = sp.getString(_kPrefLastImage);
     final savedThemeIdx = sp.getInt(_kPrefThemeIdx);
+    final savedShowNumbers = sp.getBool(_kPrefShowNumbers);
 
     final savedGame = await _readSavedGame();
 
@@ -1001,6 +1038,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         savedThemeIdx < _seedPalette.length) {
       _themeIdx = savedThemeIdx;
     }
+    if (savedShowNumbers != null) _showTileNumbers = savedShowNumbers;
 
     if (savedGame != null && !savedGame.solved) {
       dimension = savedGame.dim;
@@ -1246,8 +1284,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              // Slider now spans full available width (like bottom action bar)
                               SizedBox(
-                                width: maxBoard,
+                                width: double.infinity,
                                 child: _AssetSlider(
                                   assets: _assetImages,
                                   userImages: _userImages,
@@ -1272,10 +1311,19 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                         });
                                         final sp =
                                             await SharedPreferences.getInstance();
-                                        await sp.setString(
-                                          _kPrefLastImage,
-                                          'B64://${base64Encode(data)}',
-                                        );
+                                        if (idx < _userEntries.length) {
+                                          final originalEntry =
+                                              _userEntries[idx];
+                                          await sp.setString(
+                                            _kPrefLastImage,
+                                            originalEntry,
+                                          );
+                                        } else {
+                                          await sp.setString(
+                                            _kPrefLastImage,
+                                            'B64://${base64Encode(data)}',
+                                          );
+                                        }
                                         _clearGameState();
                                         _reset(shuffle: true);
                                         _buildSlices();
@@ -1289,17 +1337,16 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                               SizedBox(height: verticalSpacing),
                               Hero(
                                 tag: 'board',
-                                child: _FancyFrame(
-                                  child: SizedBox(
-                                    width: maxBoard,
-                                    height: maxBoard,
-                                    child: _PuzzleView(
-                                      board: board,
-                                      dimension: dimension,
-                                      image: image,
-                                      onTileTap: _onTileTap,
-                                      slices: _slices,
-                                    ),
+                                child: SizedBox(
+                                  width: maxBoard,
+                                  height: maxBoard,
+                                  child: _PuzzleView(
+                                    board: board,
+                                    dimension: dimension,
+                                    image: image,
+                                    onTileTap: _onTileTap,
+                                    slices: _slices,
+                                    showNumbers: _showTileNumbers,
                                   ),
                                 ),
                               ),
@@ -1345,23 +1392,16 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
-                      _winBanner.reverse();
-                      Future.delayed(const Duration(milliseconds: 280), () {
-                        if (!mounted) return;
-                        setState(() => _showWinOverlay = false);
-                      });
+                      if (!mounted) return;
+                      setState(() => _showWinOverlay = false);
                     },
                     child: Center(
-                      child: _WinToast(
-                        animation: CurvedAnimation(
-                          parent: _winBanner,
-                          curve: Curves.easeOutBack,
-                          reverseCurve: Curves.easeIn,
-                        ),
+                      child: _WhiteWinBox(
                         title: 'شما برنده شدید! 🎉',
                         subtitle: 'برای ادامه کلیک کنید',
                         movesText: _toFaDigits(moves),
                         timeText: _formatTime(seconds),
+                        accent: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),
@@ -1394,6 +1434,8 @@ class _AssetSliderState extends State<_AssetSlider> {
   static const _thumbWidth = 96.0;
   static const _thumbSelectedWidth = 176.0;
   static const _thumbMarginH = 6.0;
+  // فاصلهٔ کناری برای اینکه آیتم اول و آخر هنگام انتخاب کاملاً نچسبند به لبه‌ها
+  static const _edgePadding = 20.0;
 
   List<String> get _allItems {
     final userIds = List<String>.generate(
@@ -1429,10 +1471,13 @@ class _AssetSliderState extends State<_AssetSlider> {
 
     double offsetBefore = 0;
     for (int i = 0; i < index; i++) {
+      // آیتم‌های قبلِ انتخاب‌شده، عرض کوچک دارند
       offsetBefore += _thumbWidth + (_thumbMarginH * 2);
     }
-    final selItemWidth = _thumbSelectedWidth;
-    final selCenter = offsetBefore + selItemWidth / 2;
+    final selItemWidth =
+        _thumbSelectedWidth; // آیتم انتخاب‌شده عرض بزرگ‌تر دارد
+    // مرکز آیتم انتخابی با درنظر گرفتن فاصلهٔ کناری چپ
+    final selCenter = _edgePadding + offsetBefore + selItemWidth / 2;
     final viewport = _controller.position.viewportDimension;
     final targetCenterOffset = selCenter - viewport / 2;
     final maxScroll = _controller.position.maxScrollExtent;
@@ -1453,7 +1498,13 @@ class _AssetSliderState extends State<_AssetSlider> {
       child: ListView.builder(
         controller: _controller,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 0),
+        // افزودن پدینگ افقی و افزایش پدینگ عمودی به اندازه ۳ پیکسل از بالا و پایین
+        padding: const EdgeInsets.only(
+          left: _edgePadding,
+          right: _edgePadding,
+          top: 3,
+          bottom: 3,
+        ),
         itemCount: items.length,
         itemBuilder: (c, i) {
           final id = items[i];
@@ -1704,21 +1755,13 @@ class _SquareAwareThumb extends StatelessWidget {
   }
 }
 
-class _FancyFrame extends StatelessWidget {
-  final Widget child;
-  const _FancyFrame({required this.child});
-  @override
-  Widget build(BuildContext context) {
-    return child;
-  }
-}
-
 class _PuzzleView extends StatelessWidget {
   final PuzzleBoard board;
   final int dimension;
   final ui.Image? image;
   final void Function(int tileArrayIndex) onTileTap;
   final List<ui.Image?>? slices;
+  final bool showNumbers;
 
   const _PuzzleView({
     required this.board,
@@ -1726,6 +1769,7 @@ class _PuzzleView extends StatelessWidget {
     required this.image,
     required this.onTileTap,
     required this.slices,
+    required this.showNumbers,
   });
 
   @override
@@ -1769,6 +1813,7 @@ class _PuzzleView extends StatelessWidget {
     final correctPos = tile.correctIndex;
     final correctRow = correctPos ~/ dimension;
     final correctCol = correctPos % dimension;
+    final numberText = showNumbers ? _toFaDigits(tile.correctIndex + 1) : null;
 
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 200),
@@ -1790,6 +1835,7 @@ class _PuzzleView extends StatelessWidget {
               slices != null && tile.correctIndex < (dimension * dimension - 1)
               ? slices![tile.correctIndex]
               : null,
+          numberText: numberText,
         ),
       ),
     );
@@ -1803,6 +1849,7 @@ class _TileContent extends StatelessWidget {
   final int correctCol;
   final bool isCorrect;
   final ui.Image? slice;
+  final String? numberText;
 
   const _TileContent({
     required this.image,
@@ -1811,6 +1858,7 @@ class _TileContent extends StatelessWidget {
     required this.correctCol,
     required this.isCorrect,
     required this.slice,
+    required this.numberText,
   });
 
   @override
@@ -1822,11 +1870,7 @@ class _TileContent extends StatelessWidget {
               blurRadius: 18,
               spreadRadius: 1,
             ),
-            const BoxShadow(
-              color: Color(0xFFFF6EC7),
-              blurRadius: 32,
-              spreadRadius: -2,
-            ),
+            const BoxShadow(color: Color(0xFF4CAF50), spreadRadius: -2),
           ]
         : [
             BoxShadow(
@@ -1844,7 +1888,7 @@ class _TileContent extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isCorrect
-              ? const Color(0xFFFF6EC7).withValues(alpha: 0.9)
+              ? const Color(0xFF4CAF50).withValues(alpha: 0.9)
               : Colors.white.withValues(alpha: 0.45),
           width: isCorrect ? 2.2 : 1.2,
         ),
@@ -1873,6 +1917,44 @@ class _TileContent extends StatelessWidget {
                           ),
                         )
                       : const SizedBox.shrink())),
+            if (numberText != null)
+              Positioned(
+                top: 4,
+                left: 4,
+                child: Builder(
+                  builder: (context) {
+                    final numFont = dimension <= 3
+                        ? 14.0
+                        : (dimension == 4 ? 12.5 : 11.0);
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.28),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            numberText!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.vazirmatn(
+                              fontSize: numFont,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.black,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
           ],
         ),
       ),
@@ -2114,71 +2196,6 @@ class _RainbowTitle extends StatelessWidget {
   }
 }
 
-class _CircularGlassButton extends StatelessWidget {
-  final Widget icon;
-  final VoidCallback onTap;
-  final String? tooltip;
-  final Color? baseColor;
-  const _CircularGlassButton({
-    required this.icon,
-    required this.onTap,
-    this.tooltip,
-    this.baseColor,
-  });
-  @override
-  Widget build(BuildContext context) {
-    final c = baseColor ?? (Theme.of(context).colorScheme.primary);
-    final bright = c.withValues(alpha: 0.95);
-    final soft = c.withValues(alpha: 0.55);
-    final btn = InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 260),
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: [bright, soft],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.85),
-            width: 1.6,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: c.withValues(alpha: 0.55),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-            BoxShadow(
-              color: Colors.white.withValues(alpha: 0.65),
-              blurRadius: 10,
-              spreadRadius: -4,
-            ),
-          ],
-        ),
-        child: IconTheme(
-          data: IconThemeData(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : Colors.black87,
-            size: 26,
-          ),
-          child: Center(child: icon),
-        ),
-      ),
-    );
-    if (tooltip != null) {
-      return Tooltip(message: tooltip!, child: btn);
-    }
-    return btn;
-  }
-}
-
 class _ActionBar extends StatelessWidget {
   final VoidCallback onPickImage;
   final VoidCallback onShuffleIncorrect;
@@ -2198,65 +2215,154 @@ class _ActionBar extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-      child: Center(
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 18,
-          runSpacing: 16,
-          children: [
-            _CircularGlassButton(
-              icon: const Icon(Icons.image_outlined),
-              onTap: onPickImage,
-              tooltip: 'انتخاب تصویر',
-              baseColor: const Color(0xFF34C3FF),
-            ),
-            _CircularGlassButton(
-              icon: const Icon(Icons.auto_fix_high),
-              onTap: onShuffleIncorrect,
-              tooltip: 'تغییر نامرتب‌ها',
-              baseColor: const Color(0xFF9B6BFF),
-            ),
-
-            _CircularGlassButton(
-              icon: const Icon(Icons.refresh),
-              onTap: onReset,
-              tooltip: 'شروع دوباره',
-              baseColor: const Color(0xFFFF5A5F),
-            ),
-            _CircularGlassButton(
-              icon: const Icon(Icons.settings),
-              onTap: onOpenSettings,
-              tooltip: 'تنظیمات',
-              baseColor: const Color(0xFF607D8B),
-            ),
-
-            if (onHelp != null)
-              _CircularGlassButton(
-                icon: const Icon(Icons.help_outline),
-                onTap: onHelp!,
-                tooltip: 'راهنما',
-                baseColor: const Color(0xFF34C3FF),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final outline = theme.colorScheme.outlineVariant;
+    final primary = theme.colorScheme.primary;
+    final bgColor = isDark
+        ? Colors.black.withValues(alpha: 0.36)
+        : Colors.white.withValues(alpha: 0.78);
+    return SafeArea(
+      top: false,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            height: 72,
+            decoration: BoxDecoration(
+              color: bgColor,
+              border: Border(
+                top: BorderSide(color: outline.withValues(alpha: 0.6)),
               ),
-
-            if (showDelete && onDelete != null)
-              _CircularGlassButton(
-                icon: const Icon(Icons.delete_forever_outlined),
-                onTap: () async {
-                  final messenger = ScaffoldMessenger.maybeOf(context);
-                  try {
-                    await onDelete!();
-                  } catch (e) {
-                    messenger?.showSnackBar(
-                      SnackBar(content: Text('خطا در حذف عکس: $e')),
-                    );
-                  }
-                },
-                tooltip: 'حذف این عکس',
-                baseColor: const Color(0xFFEF5350),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                  blurRadius: 24,
+                  offset: const Offset(0, -6),
+                ),
+              ],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  bgColor,
+                  Color.alphaBlend(primary.withValues(alpha: 0.06), bgColor),
+                ],
               ),
-          ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _BarIconButton(
+                  icon: Icons.image_outlined,
+                  label: 'عکس',
+                  onTap: onPickImage,
+                  color: const ui.Color.fromARGB(255, 241, 15, 211),
+                ),
+                _BarIconButton(
+                  icon: Icons.auto_fix_high,
+                  label: 'جابه‌جایی',
+                  onTap: onShuffleIncorrect,
+                  color: const Color(0xFF9B6BFF),
+                ),
+                _BarIconButton(
+                  icon: Icons.refresh,
+                  label: 'دوباره',
+                  onTap: onReset,
+                  color: const Color(0xFFFF5A5F),
+                ),
+                _BarIconButton(
+                  icon: Icons.settings,
+                  label: 'تنظیمات',
+                  onTap: onOpenSettings,
+                  color: const Color(0xFF607D8B),
+                ),
+                if (onHelp != null)
+                  _BarIconButton(
+                    icon: Icons.help_outline,
+                    label: 'راهنما',
+                    onTap: onHelp!,
+                    color: const ui.Color.fromARGB(255, 58, 161, 115),
+                  ),
+                if (showDelete && onDelete != null)
+                  _BarIconButton(
+                    icon: Icons.delete_forever_outlined,
+                    label: 'حذف',
+                    onTap: () async {
+                      final messenger = ScaffoldMessenger.maybeOf(context);
+                      try {
+                        await onDelete!();
+                      } catch (e) {
+                        messenger?.showSnackBar(
+                          SnackBar(content: Text('خطا در حذف عکس: $e')),
+                        );
+                      }
+                    },
+                    color: const Color(0xFFEF5350),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BarIconButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color color;
+  const _BarIconButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // ایجاد آیکون با حاشیه (استروک) مشکی بدون تغییر پس‌زمینه یا افزودن بورد دور دکمه
+    Widget strokedIcon(IconData data, Color fill, double size) {
+      return Stack(
+        alignment: Alignment.center,
+        children: [Icon(data, color: fill, size: size)],
+      );
+    }
+
+    TextStyle baseText = GoogleFonts.vazirmatn(
+      fontSize: 11,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.1,
+      color: color.withValues(alpha: 0.95),
+    );
+
+    // متن با استروک مشکی + لایه رنگی
+    Widget strokedLabel(String text) {
+      final fill = Text(text, style: baseText);
+      return Stack(alignment: Alignment.center, children: [fill]);
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        splashColor: color.withValues(alpha: 0.18),
+        highlightColor: color.withValues(alpha: 0.10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              strokedIcon(icon, color, 24),
+              const SizedBox(height: 4),
+              strokedLabel(label),
+            ],
+          ),
         ),
       ),
     );
@@ -2287,190 +2393,6 @@ class _AnimatedTapScaleState extends State<_AnimatedTapScale> {
         duration: const Duration(milliseconds: 120),
         curve: Curves.easeOut,
         child: widget.child,
-      ),
-    );
-  }
-}
-
-class _WinToast extends StatelessWidget {
-  final Animation<double> animation;
-  final String title;
-  final String subtitle;
-  final String movesText;
-  final String timeText;
-  const _WinToast({
-    required this.animation,
-    required this.title,
-    required this.subtitle,
-    required this.movesText,
-    required this.timeText,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scale = Tween<double>(begin: 0.85, end: 1.0).animate(animation);
-    final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
-    final slide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
-
-    return FadeTransition(
-      opacity: fade,
-      child: SlideTransition(
-        position: slide,
-        child: ScaleTransition(
-          scale: scale,
-          child: _WhiteWinBox(
-            title: title,
-            subtitle: subtitle,
-            movesText: movesText,
-            timeText: timeText,
-            accent: theme.colorScheme.primary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class SettingsPage extends StatelessWidget {
-  final bool darkMode;
-  final int themeIndex;
-  final List<Color> seedPalette;
-  final int dimension;
-  final ValueChanged<bool> onDarkChanged;
-  final ValueChanged<int> onThemeIndexChanged;
-  final ValueChanged<int> onDimensionChanged;
-
-  const SettingsPage({
-    super.key,
-    required this.darkMode,
-    required this.themeIndex,
-    required this.seedPalette,
-    required this.dimension,
-    required this.onDarkChanged,
-    required this.onThemeIndexChanged,
-    required this.onDimensionChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'تنظیمات',
-          style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w800),
-        ),
-        centerTitle: true,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          Text('تم', style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          SwitchListTile(
-            title: Text('حالت تیره', style: GoogleFonts.vazirmatn()),
-            value: darkMode,
-            onChanged: onDarkChanged,
-            secondary: const Icon(Icons.dark_mode),
-            controlAffinity: ListTileControlAffinity.leading,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'رنگ تم',
-            style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (int i = 0; i < seedPalette.length; i++)
-                _ThemeColorDot(
-                  color: seedPalette[i],
-                  selected: i == themeIndex,
-                  onTap: () => onThemeIndexChanged(i),
-                ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          const Divider(height: 24),
-          const SizedBox(height: 8),
-          Text(
-            'ابعاد پازل',
-            style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (final d in const [3, 4, 5])
-                ChoiceChip(
-                  label: Text(
-                    '🧩 ${_toFaDigits('$d در $d')}',
-                    style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
-                  ),
-                  selected: dimension == d,
-                  onSelected: (_) => onDimensionChanged(d),
-                ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.check),
-            label: Text(
-              'بستن',
-              style: GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ThemeColorDot extends StatelessWidget {
-  final Color color;
-  final bool selected;
-  final VoidCallback onTap;
-  const _ThemeColorDot({
-    required this.color,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final border = selected ? Colors.black : Colors.white;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: [
-              color.withValues(alpha: 0.9),
-              color.withValues(alpha: 0.6),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: border.withValues(alpha: 0.9), width: 2),
-          boxShadow: [
-            if (selected)
-              BoxShadow(
-                color: color.withValues(alpha: 0.5),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -2651,6 +2573,8 @@ class ParticleBurstPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const MainApp());
 }
