@@ -1284,8 +1284,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              // Slider now spans full available width (like bottom action bar)
                               SizedBox(
-                                width: maxBoard,
+                                width: double.infinity,
                                 child: _AssetSlider(
                                   assets: _assetImages,
                                   userImages: _userImages,
@@ -1318,7 +1319,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                             originalEntry,
                                           );
                                         } else {
-                                          // Fallback (should not normally happen)
                                           await sp.setString(
                                             _kPrefLastImage,
                                             'B64://${base64Encode(data)}',
@@ -1434,6 +1434,8 @@ class _AssetSliderState extends State<_AssetSlider> {
   static const _thumbWidth = 96.0;
   static const _thumbSelectedWidth = 176.0;
   static const _thumbMarginH = 6.0;
+  // فاصلهٔ کناری برای اینکه آیتم اول و آخر هنگام انتخاب کاملاً نچسبند به لبه‌ها
+  static const _edgePadding = 20.0;
 
   List<String> get _allItems {
     final userIds = List<String>.generate(
@@ -1469,10 +1471,13 @@ class _AssetSliderState extends State<_AssetSlider> {
 
     double offsetBefore = 0;
     for (int i = 0; i < index; i++) {
+      // آیتم‌های قبلِ انتخاب‌شده، عرض کوچک دارند
       offsetBefore += _thumbWidth + (_thumbMarginH * 2);
     }
-    final selItemWidth = _thumbSelectedWidth;
-    final selCenter = offsetBefore + selItemWidth / 2;
+    final selItemWidth =
+        _thumbSelectedWidth; // آیتم انتخاب‌شده عرض بزرگ‌تر دارد
+    // مرکز آیتم انتخابی با درنظر گرفتن فاصلهٔ کناری چپ
+    final selCenter = _edgePadding + offsetBefore + selItemWidth / 2;
     final viewport = _controller.position.viewportDimension;
     final targetCenterOffset = selCenter - viewport / 2;
     final maxScroll = _controller.position.maxScrollExtent;
@@ -1493,7 +1498,13 @@ class _AssetSliderState extends State<_AssetSlider> {
       child: ListView.builder(
         controller: _controller,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 0),
+        // افزودن پدینگ افقی و افزایش پدینگ عمودی به اندازه ۳ پیکسل از بالا و پایین
+        padding: const EdgeInsets.only(
+          left: _edgePadding,
+          right: _edgePadding,
+          top: 3,
+          bottom: 3,
+        ),
         itemCount: items.length,
         itemBuilder: (c, i) {
           final id = items[i];
