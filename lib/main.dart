@@ -2188,7 +2188,6 @@ class _ActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final onSurface = theme.colorScheme.onSurface;
     final outline = theme.colorScheme.outlineVariant;
     final primary = theme.colorScheme.primary;
     final bgColor = isDark
@@ -2231,32 +2230,32 @@ class _ActionBar extends StatelessWidget {
                   icon: Icons.image_outlined,
                   label: 'عکس',
                   onTap: onPickImage,
-                  color: onSurface.withValues(alpha: 0.95),
+                  color: const ui.Color.fromARGB(255, 241, 15, 211),
                 ),
                 _BarIconButton(
                   icon: Icons.auto_fix_high,
                   label: 'جابه‌جایی',
                   onTap: onShuffleIncorrect,
-                  color: onSurface.withValues(alpha: 0.95),
+                  color: const Color(0xFF9B6BFF),
                 ),
                 _BarIconButton(
                   icon: Icons.refresh,
                   label: 'دوباره',
                   onTap: onReset,
-                  color: onSurface.withValues(alpha: 0.95),
+                  color: const Color(0xFFFF5A5F),
                 ),
                 _BarIconButton(
                   icon: Icons.settings,
                   label: 'تنظیمات',
                   onTap: onOpenSettings,
-                  color: onSurface.withValues(alpha: 0.95),
+                  color: const Color(0xFF607D8B),
                 ),
                 if (onHelp != null)
                   _BarIconButton(
                     icon: Icons.help_outline,
                     label: 'راهنما',
                     onTap: onHelp!,
-                    color: onSurface.withValues(alpha: 0.95),
+                    color: const ui.Color.fromARGB(255, 58, 161, 115),
                   ),
                 if (showDelete && onDelete != null)
                   _BarIconButton(
@@ -2272,7 +2271,7 @@ class _ActionBar extends StatelessWidget {
                         );
                       }
                     },
-                    color: onSurface.withValues(alpha: 0.95),
+                    color: const Color(0xFFEF5350),
                   ),
               ],
             ),
@@ -2297,6 +2296,27 @@ class _BarIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ایجاد آیکون با حاشیه (استروک) مشکی بدون تغییر پس‌زمینه یا افزودن بورد دور دکمه
+    Widget strokedIcon(IconData data, Color fill, double size) {
+      return Stack(
+        alignment: Alignment.center,
+        children: [Icon(data, color: fill, size: size)],
+      );
+    }
+
+    TextStyle baseText = GoogleFonts.vazirmatn(
+      fontSize: 11,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.1,
+      color: color.withValues(alpha: 0.95),
+    );
+
+    // متن با استروک مشکی + لایه رنگی
+    Widget strokedLabel(String text) {
+      final fill = Text(text, style: baseText);
+      return Stack(alignment: Alignment.center, children: [fill]);
+    }
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -2309,17 +2329,9 @@ class _BarIconButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 26),
+              strokedIcon(icon, color, 24),
               const SizedBox(height: 4),
-              Text(
-                label,
-                style: GoogleFonts.vazirmatn(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: color.withValues(alpha: 0.9),
-                  letterSpacing: 0.1,
-                ),
-              ),
+              strokedLabel(label),
             ],
           ),
         ),
