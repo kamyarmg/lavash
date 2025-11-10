@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/image_utils.dart';
 import '../core/strings.dart';
 import '../core/utils.dart';
 import '../models/puzzle.dart';
@@ -204,11 +205,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       if (pickIdx < userCount) {
         final idx = pickIdx;
         final data = _userImages[idx];
-        final codec = await ui.instantiateImageCodec(data);
-        final frame = await codec.getNextFrame();
+        final img = await decodeUiImage(data);
         if (!mounted) return;
         setState(() {
-          image = frame.image;
+          image = img;
           _selectedId = _userId(idx);
         });
         final sp = await SharedPreferences.getInstance();
@@ -233,12 +233,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   Future<void> _loadAssetImage(String path, {bool forResume = false}) async {
     try {
       final data = await rootBundle.load(path);
-      final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
-      final frame = await codec.getNextFrame();
+      final img = await decodeUiImage(data.buffer.asUint8List());
       if (!mounted) return;
       setState(() {
         _selectedId = path;
-        image = frame.image;
+        image = img;
       });
       final sp = await SharedPreferences.getInstance();
       await sp.setString(_kPrefLastImage, path);
@@ -372,11 +371,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         suggestedName: result.name,
       );
       _addUserEntry(entry, data);
-      final codec = await ui.instantiateImageCodec(data);
-      final frame = await codec.getNextFrame();
+      final img = await decodeUiImage(data);
       if (!mounted) return;
       setState(() {
-        image = frame.image;
+        image = img;
         _selectedId = _userId(0);
       });
       final sp = await SharedPreferences.getInstance();
@@ -433,11 +431,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     if (_userImages.isNotEmpty) {
       try {
         final data = _userImages[0];
-        final codec = await ui.instantiateImageCodec(data);
-        final frame = await codec.getNextFrame();
+        final img = await decodeUiImage(data);
         if (!mounted) return;
         setState(() {
-          image = frame.image;
+          image = img;
           _selectedId = _userId(0);
         });
         final sp = await SharedPreferences.getInstance();
@@ -542,11 +539,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       final data = await xf.readAsBytes();
       final entry = 'FILE://$filePath';
       _addUserEntry(entry, data);
-      final codec = await ui.instantiateImageCodec(data);
-      final frame = await codec.getNextFrame();
+      final img = await decodeUiImage(data);
       if (!mounted) return;
       setState(() {
-        image = frame.image;
+        image = img;
         _selectedId = _userId(0);
       });
       if (forResume) {
@@ -675,11 +671,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
           final data = base64Decode(b64);
           _addUserEntry('B64://$b64', data);
           await _saveUserImagesList();
-          final codec = await ui.instantiateImageCodec(data);
-          final frame = await codec.getNextFrame();
+          final img = await decodeUiImage(data);
           if (mounted) {
             setState(() {
-              image = frame.image;
+              image = img;
               final idx = _userEntries.indexOf('B64://$b64');
               _selectedId = idx >= 0 ? _userId(idx) : _userId(0);
             });
@@ -696,11 +691,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
           final data = await XFile(path).readAsBytes();
           _addUserEntry(savedImage, data);
           await _saveUserImagesList();
-          final codec = await ui.instantiateImageCodec(data);
-          final frame = await codec.getNextFrame();
+          final img = await decodeUiImage(data);
           if (mounted) {
             setState(() {
-              image = frame.image;
+              image = img;
               final idx = _userEntries.indexOf(savedImage);
               _selectedId = idx >= 0 ? _userId(idx) : _userId(0);
             });
@@ -808,13 +802,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                           idx >= 0 &&
                                           idx < _userImages.length) {
                                         final data = _userImages[idx];
-                                        final codec = await ui
-                                            .instantiateImageCodec(data);
-                                        final frame = await codec
-                                            .getNextFrame();
+                                        final img = await decodeUiImage(data);
                                         if (!mounted) return;
                                         setState(() {
-                                          image = frame.image;
+                                          image = img;
                                           _selectedId = id;
                                         });
                                         final sp =

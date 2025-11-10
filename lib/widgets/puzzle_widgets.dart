@@ -539,8 +539,9 @@ class PuzzleView extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final tileSize = constraints.maxWidth / dimension;
-          if (image == null)
+          if (image == null) {
             return const Center(child: CircularProgressIndicator());
+          }
           return Stack(
             children: [
               Positioned.fill(child: Container(color: Colors.transparent)),
