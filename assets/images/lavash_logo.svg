@@ -27,13 +27,16 @@
     <g transform="translate(90,90)">
       <!-- New centers: each tile 270 -> center offset 135 -->
       <!-- Top middle tile (x=288,y=0) center (288+135=423 , 0+135=135) -->
-      <text x="423" y="135" fill="#FFFFFF" dominant-baseline="middle">ل</text>
+  <!-- Slightly lower 'ل' for better visual balance -->
+  <text x="423" y="147" fill="#FFFFFF" dominant-baseline="middle">ل</text>
       <!-- Middle row right tile (x=576,y=288) center (576+135=711 , 288+135=423) -->
       <text x="711" y="423" fill="#FFFFFF" dominant-baseline="middle">و</text>
       <!-- Middle row left tile (x=0,y=288) center (0+135=135 , 288+135=423) -->
-      <text x="135" y="423" fill="#FFFFFF" dominant-baseline="middle">ا</text>
+  <!-- Slightly lower 'ا' for better visual balance -->
+  <text x="135" y="435" fill="#FFFFFF" dominant-baseline="middle">ا</text>
       <!-- Bottom middle tile (x=288,y=576) center (288+135=423 , 576+135=711) -->
-      <text x="423" y="711" fill="#FFFFFF" dominant-baseline="middle">ش</text>
+  <!-- Slightly lower 'ش' for better visual balance -->
+  <text x="423" y="723" fill="#FFFFFF" dominant-baseline="middle">ش</text>
     </g>
   </g>
 </svg>
