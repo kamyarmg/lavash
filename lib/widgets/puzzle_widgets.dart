@@ -10,6 +10,8 @@ import '../core/utils.dart';
 import '../models/puzzle.dart';
 
 // Background
+/// A soft, modern background that optionally shows a blurred, desaturated
+/// cover of the selected image with subtle vignettes and a color tint.
 class ModernBackground extends StatelessWidget {
   final ui.Image? image;
   final bool dark;
@@ -21,6 +23,8 @@ class ModernBackground extends StatelessWidget {
     required this.primary,
   });
 
+  /// Builds a 4x5 color matrix that adjusts saturation to [s].
+  /// Used to reduce visual noise behind the puzzle board.
   static List<double> _saturationMatrix(double s) {
     const lumR = 0.213, lumG = 0.715, lumB = 0.072;
     final inv = 1 - s;
@@ -114,6 +118,7 @@ class _CoverImagePainter extends CustomPainter {
   _CoverImagePainter(this.image);
   @override
   void paint(Canvas canvas, Size size) {
+    // Draws image to cover entire canvas while preserving aspect ratio.
     final imgW = image.width.toDouble();
     final imgH = image.height.toDouble();
     final dstW = size.width;
@@ -135,6 +140,8 @@ class _CoverImagePainter extends CustomPainter {
 }
 
 // Slider widgets
+/// Horizontal slider listing user images (first) and bundled assets.
+/// Keeps the selected item centered when lists change.
 class AssetSlider extends StatefulWidget {
   final List<String> assets;
   final List<Uint8List> userImages;
@@ -187,6 +194,7 @@ class _AssetSliderState extends State<AssetSlider> {
     final items = _allItems;
     final selId = widget.selectedId;
     if (selId == null) return;
+    // Compute content offset up to selected index, then center it.
     final index = items.indexOf(selId);
     if (index < 0) return;
     double offsetBefore = 0;
@@ -300,6 +308,7 @@ class _SliderThumbState extends State<_SliderThumb>
   Widget build(BuildContext context) {
     final sel = widget.selected;
     final scale = sel ? 1.10 + 0.04 * _hover : 0.88 + 0.06 * _hover;
+    // Animated neon border when selected; muted stroke otherwise.
     final borderGrad = sel
         ? LinearGradient(
             colors: [
@@ -387,6 +396,7 @@ class _SquareAwareThumb extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
+                  // Either show user bytes or a bundled asset thumbnail.
                   if (isUser)
                     (bytes != null
                         ? Image.memory(bytes!, fit: BoxFit.cover)
@@ -514,6 +524,8 @@ class _ThumbDeleteButton extends StatelessWidget {
 }
 
 // Puzzle view
+/// Renders the sliding puzzle by absolutely positioning each tile according
+/// to its current index. When solved, fades the full image in underneath.
 class PuzzleView extends StatelessWidget {
   final PuzzleBoard board;
   final int dimension;
@@ -567,6 +579,7 @@ class PuzzleView extends StatelessWidget {
   }
 
   Widget _buildTile(BuildContext context, Tile tile, double tileSize) {
+    // Map 1D index to 2D (row, col) for current and correct positions.
     final row = tile.currentIndex ~/ dimension;
     final col = tile.currentIndex % dimension;
     final correctPos = tile.correctIndex;
@@ -616,6 +629,8 @@ class _ImagePainter extends CustomPainter {
   });
   @override
   void paint(Canvas canvas, Size size) {
+    // If [clipRow]/[clipCol] are provided, draws only that tile-sized region
+    // from the source image; otherwise draws the whole image.
     final paint = Paint()..filterQuality = FilterQuality.high;
     final srcRect = () {
       if (clipRow == null || clipCol == null) {
@@ -762,6 +777,7 @@ class _TileContent extends StatelessWidget {
 }
 
 // Tap scale animation
+/// Provides a small scale-down effect while tapping to give tactile feedback.
 class _AnimatedTapScale extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
@@ -792,6 +808,7 @@ class _AnimatedTapScaleState extends State<_AnimatedTapScale> {
 }
 
 // Action bar
+/// Blurred, translucent bottom action bar with the main controls.
 class ActionBar extends StatelessWidget {
   final Strings strings;
   final VoidCallback onPickImage;
@@ -933,6 +950,7 @@ class _BarIconButton extends StatelessWidget {
 }
 
 // Win overlay
+/// A celebratory white card with gradient border showing moves and time.
 class WhiteWinBox extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -1086,6 +1104,7 @@ class WhiteWinBox extends StatelessWidget {
 }
 
 // Bottom sheets (Help & Settings simplified wrappers)
+/// Bottom sheet describing how to play. Text direction switches with language.
 class HelpBottomSheet extends StatelessWidget {
   final AppLanguage language;
   final Strings strings;
@@ -1274,6 +1293,7 @@ class HelpBottomSheet extends StatelessWidget {
 }
 
 class SettingsBottomSheet extends StatefulWidget {
+  /// Bottom sheet for theme, tile numbers, size, and language settings.
   final AppLanguage language;
   final Strings strings;
   final bool darkMode;

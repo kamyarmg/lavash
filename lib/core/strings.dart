@@ -6,6 +6,9 @@ class Strings {
 
   bool get isFa => lang == AppLanguage.fa;
 
+  // NOTE: Each getter returns a localized string. Only include a doc comment where
+  // semantics might not be immediately obvious. Most are self‑explanatory labels.
+
   // General
   String get appTitle => isFa ? 'پازل کشویی لواش' : 'Lavash Sliding Puzzle';
   String get close => isFa ? 'بستن' : 'Close';

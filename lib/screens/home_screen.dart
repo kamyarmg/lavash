@@ -26,6 +26,11 @@ class MainApp extends StatefulWidget {
 }
 
 class _SavedGame {
+  /// Minimal snapshot to restore a game:
+  /// - [dim]: board dimension (e.g., 3, 4, 5)
+  /// - [tileCurrents]: each tile's current grid index (CSV in storage)
+  /// - [moves], [seconds]: progress counters
+  /// - [solved]: whether the saved board was already solved
   final int dim;
   final List<int> tileCurrents;
   final int moves;
@@ -92,6 +97,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    // Start with a solvable random board; image will be picked/loaded later.
     board = PuzzleBoard.solved(dimension).shuffled(rng);
     _loadSettings();
     _winBanner = AnimationController(
@@ -165,6 +171,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 
   Future<void> _loadAssetImagesList() async {
+    // Reads AssetManifest at runtime and lists images under assets/images/.
+    // Falls back to a small fixed set if manifest isn't accessible.
     if (_imagesLoaded) return;
     try {
       final manifestContent = await rootBundle.loadString('AssetManifest.json');
@@ -195,6 +203,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 
   Future<void> _loadRandomAssetImage() async {
+    // Picks an image from user-picked list or bundled assets, decodes it,
+    // updates selection, and resets current game with new slices.
     try {
       await _loadAssetImagesList();
       final int userCount = _userImages.length;
@@ -231,6 +241,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 
   Future<void> _loadAssetImage(String path, {bool forResume = false}) async {
+    // Loads a bundled asset by path and optionally keeps the board if resuming.
     try {
       final data = await rootBundle.load(path);
       final img = await decodeUiImage(data.buffer.asUint8List());
@@ -276,6 +287,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     XFile? source,
     String? suggestedName,
   }) async {
+    // Persists a picked image on disk (mobile/desktop) or as base64 (web).
+    // Returns a scheme-qualified entry: FILE://path or B64://... for later reload.
     if (kIsWeb) return 'B64://${base64Encode(data)}';
     try {
       final dir = await getApplicationDocumentsDirectory();
@@ -330,6 +343,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 
   Future<void> _buildSlices() async {
+    // Splits the full image into (dim*dim - 1) tile images for fast painting.
+    // The bottom-right tile remains empty (classic 15-puzzle convention).
     if (image == null) {
       _slices = null;
       if (mounted) setState(() {});
@@ -360,6 +375,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 
   Future<void> _pickImage() async {
+    // Opens platform picker, persists the result, updates selection and resets the board.
     try {
       final picker = ImagePicker();
       final result = await picker.pickImage(source: ImageSource.gallery);
@@ -561,6 +577,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 
   Future<_SavedGame?> _readSavedGame() async {
+    // Reads a previously saved board from SharedPreferences.
+    // Tiles are stored as a CSV of current indices, validated before use.
     try {
       final sp = await SharedPreferences.getInstance();
       final dim = sp.getInt(_kGameDim);
@@ -594,6 +612,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 
   Future<void> _saveGameState({bool? solved}) async {
+    // Persists the current board state so the user can resume later.
     try {
       final sp = await SharedPreferences.getInstance();
       final dim = dimension;
@@ -621,6 +640,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 
   void _applySavedGame(_SavedGame sg) {
+    // Applies a saved permutation/moves/time onto a fresh solved board.
     dimension = sg.dim;
     final newBoard = PuzzleBoard.solved(dimension);
     for (int i = 0; i < newBoard.tiles.length; i++) {
@@ -635,6 +655,8 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 
   Future<void> _loadSettings() async {
+    // Loads theme, language, last image, user images and game snapshot, then
+    // either resumes the game (if not solved) or starts a fresh shuffled one.
     final sp = await SharedPreferences.getInstance();
     final savedDark = sp.getBool(_kPrefDark);
     final savedDim = sp.getInt(_kPrefDim);

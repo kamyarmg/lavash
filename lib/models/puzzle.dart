@@ -15,6 +15,7 @@ class PuzzleBoard {
   PuzzleBoard._(this.dimension, this.tiles);
 
   factory PuzzleBoard.solved(int dim) {
+    // Creates a solved board: each tile's current position equals its goal.
     final total = dim * dim;
     final tiles = List.generate(
       total,
@@ -27,6 +28,8 @@ class PuzzleBoard {
   int get emptyTileIndex => tiles.length - 1;
 
   List<int> movableTileArrayIndexes() {
+    // Returns indexes of tiles (in the tiles list) that can move into the empty space.
+    // We locate the empty tile's logical grid position then test 4-neighbors.
     final emptyPos = tiles[emptyTileIndex].currentIndex;
     final row = emptyPos ~/ dimension;
     final col = emptyPos % dimension;
@@ -49,6 +52,7 @@ class PuzzleBoard {
   }
 
   bool move(int tileArrayIndex) {
+    // Swaps the chosen tile with the empty tile if adjacent. Returns true if moved.
     if (!movableTileArrayIndexes().contains(tileArrayIndex)) return false;
     final empty = tiles[emptyTileIndex];
     final tile = tiles[tileArrayIndex];
@@ -59,6 +63,8 @@ class PuzzleBoard {
   }
 
   PuzzleBoard shuffled(Random rng) {
+    // Generates a random solvable permutation by shuffling until the parity & rules match.
+    // Attempts are capped for safety; falls back to current board if none found.
     final maxAttempts = 5000;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       final perm = List<int>.generate(tiles.length, (i) => i);
@@ -81,6 +87,9 @@ class PuzzleBoard {
   }
 
   static bool _isSolvable(List<int> perm, int dim) {
+    // Standard sliding puzzle solvability check:
+    // - For odd dimensions: inversion count must be even.
+    // - For even dimensions: parity depends on row of empty from bottom.
     final list = perm.take(perm.length - 1).toList();
     int inversions = 0;
     for (int i = 0; i < list.length; i++) {
@@ -103,6 +112,8 @@ class PuzzleBoard {
   }
 
   PuzzleBoard partialShuffleIncorrect(Random rng) {
+    // Light shuffle: only repositions currently incorrect non-empty tiles.
+    // Tries multiple random reassignments and keeps the first solvable outcome.
     final incorrectTiles = tiles
         .where(
           (t) =>
