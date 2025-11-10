@@ -698,7 +698,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                         Icons.image_outlined,
                         const Color(0xFF34C3FF),
                         'انتخاب تصویر',
-                        'از گالری عکسی انتخاب کنید تا بازی جدید با عکس انتخابی شما شروع شود. عکس انتخابی شما ذخیره میشود تا بعدا نیز استفاده شود.',
+                        'از گالری عکسی انتخاب کنید تا بازی جدید با عکس انتخابی شما شروع شود. عکس انتخابی شما ذخیره میشود تا بعدا نیز استفاده شود. بهتر است تصویر شما حالت مربعی داشته باشد تا نمود بهتری در بازی داشته باشد.',
                       ),
                       _helpItemRow(
                         Icons.auto_fix_high,
@@ -719,10 +719,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                         'از طریق منوی تنظیمات می‌توانید، نمایش یا عدم نمایش شماره هر تایل، حالت روشن/تیره و ابعاد بازی را تغییر دهید.',
                       ),
                       _helpItemRow(
-                        Icons.delete_forever_outlined,
+                        Icons.close_rounded,
                         const Color(0xFFEF5350),
                         'حذف عکس',
-                        'برای تصاویری که کاربر انتخاب کرده فعال است و می‌توانید تصاویر انتخابی خودتان را حذف کنید.',
+                        'برای تصاویر انتخابی خودتان، یک دکمه ضربدر در گوشهٔ بالا-راست بندانگشتی در اسلایدر ظاهر می‌شود؛ با زدن آن، تصویر حذف و بازی با یک تصویر تصادفی ادامه می‌یابد.',
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -1779,18 +1779,18 @@ class _ThumbDeleteButton extends StatelessWidget {
           opacity: 1.0,
           duration: const Duration(milliseconds: 220),
           child: Material(
-            color: Colors.white.withValues(alpha: 0.14),
+            color: Colors.red.withValues(alpha: 0.14),
             shape: CircleBorder(
               side: BorderSide(
-                color: Colors.white.withValues(alpha: 0.30),
+                color: Colors.red.withValues(alpha: 0.30),
                 width: 1,
               ),
             ),
             elevation: 0,
             child: InkWell(
               customBorder: const CircleBorder(),
-              splashColor: Colors.black.withValues(alpha: 0.25),
-              highlightColor: Colors.black.withValues(alpha: 0.18),
+              splashColor: Colors.red.withValues(alpha: 0.25),
+              highlightColor: Colors.red.withValues(alpha: 0.18),
               onTap: () async {
                 final messenger = ScaffoldMessenger.maybeOf(context);
                 try {
@@ -1801,14 +1801,14 @@ class _ThumbDeleteButton extends StatelessWidget {
                   );
                 }
               },
-              child: const SizedBox(
+              child: SizedBox(
                 width: 30,
                 height: 30,
                 child: Center(
                   child: Icon(
                     Icons.close_rounded,
                     size: 18,
-                    color: Colors.white,
+                    color: const Color(0xFFEF5350).withValues(alpha: 0.92),
                   ),
                 ),
               ),
