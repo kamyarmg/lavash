@@ -44,11 +44,11 @@ class PuzzleBoard {
     return PuzzleBoard._(dim, tiles);
   }
 
+  bool get isSolved => tiles.every((t) => t.inCorrectPlace);
   int get emptyTileIndex => tiles.length - 1;
 
-  bool get isSolved => tiles.every((t) => t.inCorrectPlace);
-
   List<int> movableTileArrayIndexes() {
+    // linear index of the empty tile is always last (dimension*dimension - 1)
     final emptyPos = tiles[emptyTileIndex].currentIndex;
     final row = emptyPos ~/ dimension;
     final col = emptyPos % dimension;
@@ -1331,6 +1331,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                       _loadAssetImage(id);
                                     }
                                   },
+                                  // Provide delete callback so the X button works
+                                  onDeleteSelected:
+                                      _confirmAndDeleteSelectedUserImage,
                                 ),
                               ),
                               SizedBox(height: verticalSpacing),
@@ -1370,8 +1373,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                   onReset: () => _loadRandomAssetImage(),
                   onOpenSettings: _openSettings,
                   onHelp: _showHelp,
-                  showDelete: (_selectedId?.startsWith('USER:') ?? false),
-                  onDelete: _confirmAndDeleteSelectedUserImage,
+                  // Delete button moved to slider thumbnail overlay (X)
+                  showDelete: false,
+                  onDelete: null,
                 ),
               ),
               if (_justSolved)
@@ -1418,11 +1422,14 @@ class _AssetSlider extends StatefulWidget {
   final List<Uint8List> userImages;
   final String? selectedId;
   final ValueChanged<String> onSelect;
+  // Triggered when user taps the delete (X) button on the selected user image
+  final Future<void> Function()? onDeleteSelected;
   const _AssetSlider({
     required this.assets,
     required this.selectedId,
     required this.onSelect,
     this.userImages = const [],
+    this.onDeleteSelected,
   });
   @override
   State<_AssetSlider> createState() => _AssetSliderState();
@@ -1518,6 +1525,7 @@ class _AssetSliderState extends State<_AssetSlider> {
                 ? widget.userImages[int.tryParse(id.split(':')[1]) ?? 0]
                 : null,
             assetPath: isUser ? null : id,
+            onDeleteTap: (isSel && isUser) ? widget.onDeleteSelected : null,
             width: baseWidth,
             margin: EdgeInsets.symmetric(
               horizontal: _thumbMarginH,
@@ -1540,6 +1548,7 @@ class _SliderThumb extends StatefulWidget {
   final String? assetPath;
   final double? width;
   final EdgeInsetsGeometry? margin;
+  final Future<void> Function()? onDeleteTap;
   const _SliderThumb({
     required this.index,
     required this.selected,
@@ -1550,6 +1559,7 @@ class _SliderThumb extends StatefulWidget {
     this.assetPath,
     this.width,
     this.margin,
+    this.onDeleteTap,
   });
   @override
   State<_SliderThumb> createState() => _SliderThumbState();
@@ -1623,6 +1633,7 @@ class _SliderThumbState extends State<_SliderThumb>
               isUser: widget.isUser,
               bytes: widget.bytes,
               assetPath: widget.assetPath,
+              onDeleteTap: widget.onDeleteTap,
             ),
           ),
         ),
@@ -1639,6 +1650,7 @@ class _SquareAwareThumb extends StatelessWidget {
   final bool isUser;
   final Uint8List? bytes;
   final String? assetPath;
+  final Future<void> Function()? onDeleteTap;
   const _SquareAwareThumb({
     required this.square,
     required this.borderGrad,
@@ -1647,6 +1659,7 @@ class _SquareAwareThumb extends StatelessWidget {
     required this.isUser,
     this.bytes,
     this.assetPath,
+    this.onDeleteTap,
   });
 
   @override
@@ -1733,6 +1746,14 @@ class _SquareAwareThumb extends StatelessWidget {
                         ),
                       ),
                     ),
+
+                  // Top-right delete (X) only for selected user images
+                  if (isSelected && isUser && onDeleteTap != null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _ThumbDeleteButton(onTap: onDeleteTap!),
+                    ),
                 ],
               ),
             ),
@@ -1741,6 +1762,61 @@ class _SquareAwareThumb extends StatelessWidget {
       ),
     );
     return square ? AspectRatio(aspectRatio: 1, child: tile) : tile;
+  }
+}
+
+class _ThumbDeleteButton extends StatelessWidget {
+  final Future<void> Function() onTap;
+  const _ThumbDeleteButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: AnimatedOpacity(
+          opacity: 1.0,
+          duration: const Duration(milliseconds: 220),
+          child: Material(
+            color: Colors.white.withValues(alpha: 0.14),
+            shape: CircleBorder(
+              side: BorderSide(
+                color: Colors.white.withValues(alpha: 0.30),
+                width: 1,
+              ),
+            ),
+            elevation: 0,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              splashColor: Colors.black.withValues(alpha: 0.25),
+              highlightColor: Colors.black.withValues(alpha: 0.18),
+              onTap: () async {
+                final messenger = ScaffoldMessenger.maybeOf(context);
+                try {
+                  await onTap();
+                } catch (e) {
+                  messenger?.showSnackBar(
+                    SnackBar(content: Text('خطا در حذف عکس: $e')),
+                  );
+                }
+              },
+              child: const SizedBox(
+                width: 30,
+                height: 30,
+                child: Center(
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
