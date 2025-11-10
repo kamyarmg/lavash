@@ -13,6 +13,87 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+enum AppLanguage { fa, en }
+
+class Strings {
+  final AppLanguage lang;
+  const Strings(this.lang);
+
+  bool get isFa => lang == AppLanguage.fa;
+
+  // General
+  String get appTitle => isFa ? 'پازل کشویی لواش' : 'Lavash Sliding Puzzle';
+  String get close => isFa ? 'بستن' : 'Close';
+
+  // Action bar labels
+  String get abPickImage => isFa ? 'عکس' : 'Image';
+  String get abShuffleIncorrect => isFa ? 'جابه‌جایی' : 'Shuffle';
+  String get abReset => isFa ? 'دوباره' : 'Reset';
+  String get abSettings => isFa ? 'تنظیمات' : 'Settings';
+  String get abHelp => isFa ? 'راهنما' : 'Help';
+  String get abDelete => isFa ? 'حذف' : 'Delete';
+
+  // Settings
+  String get settingsTitle => isFa ? 'تنظیمات' : 'Settings';
+  String get settingsDark => isFa ? 'حالت تیره' : 'Dark mode';
+  String get settingsShowNumbers =>
+      isFa ? 'نمایش شماره تایل‌ها' : 'Show tile numbers';
+  String get settingsPuzzleSize => isFa ? 'ابعاد پازل' : 'Puzzle size';
+  String get settingsLanguage => isFa ? 'زبان' : 'Language';
+  String get langFa => 'فارسی';
+  String get langEn => 'English';
+
+  // Help
+  String get helpHowTo => isFa ? 'نحوه بازی:' : 'How to play:';
+  String get helpHowToBody => isFa
+      ? 'تصویر (انتخابی شما یا انتخاب شده توسط برنامه) به قطعاتی که شما انتخاب نمودید (پیشفرض ۳ در ۳) به همراه یک خانه خالی تقسیم میشود. با زدن هر قطعهٔ مجاور خانهٔ خالی آن قطعه جایگزین خانهٔ خالی میشود. هدف این است که همهٔ قطعات را به جای درستشان برگردانید و تصویر اصلی را درست کنید. به صورت پیشفرض بازی با عکس تصادفی آغاز میشود ولی شما میتوانید از طریق اسلایدر عکسی را انتخاب و بازی جدیدی آغاز کنید.'
+      : 'The image (yours or app-selected) is split into tiles (default 3x3) with one empty space. Tap a tile adjacent to the empty space to move it. Your goal is to restore the original image. The game starts with a random image, but you can pick one from the slider to start a new game.';
+  String get helpFeatures =>
+      isFa ? 'دکمهها و امکانات:' : 'Buttons and features:';
+  String get helpPickImageTitle => isFa ? 'تصویر' : 'image';
+  String get helpPickImageDesc => isFa
+      ? 'از گالری خودتام عکسی انتخاب کنید تا بازی جدید با عکس انتخابی شما شروع شود. عکس انتخابی شما ذخیره میشود تا بعدا نیز استفاده شود.'
+      : 'Choose a photo from your gallery to start a new game. Your chosen photo is saved for later use.';
+  String get helpShuffleTitle => isFa ? 'جابه جایی' : 'Shuffle';
+  String get helpShuffleDesc => isFa
+      ? 'چند قطعهٔ نامرتب را جابه جا میکند تا چیدمان عوض شود.'
+      : 'Swaps a few incorrect tiles to change the layout.';
+  String get helpResetTitle => isFa ? 'دوباره' : 'reset';
+  String get helpResetDesc => isFa
+      ? 'بازی را از ابتدا و با یک تصویر رندم شروع میکند.'
+      : 'Starts a new game from scratch with a random image.';
+  String get helpSettingsTitle => isFa ? 'تنظیمات' : 'Settings';
+  String get helpSettingsDesc => isFa
+      ? 'از طریق منوی تنظیمات میتوانید نمایش/عدم نمایش شمارهٔ تایلها، حالت روشن/تیره، ابعاد و زبان بازی را تغییر دهید.'
+      : 'Use settings to toggle tile numbers, light/dark mode, puzzle size, and language.';
+  String get helpDeleteTitle => isFa ? 'حذف عکس' : 'Delete image';
+  String get helpDeleteDesc => isFa
+      ? 'برای تصاویر انتخابی شما، یک آیکن ضربدر (X) شفاف در گوشهٔ بالاراست بندانگشتی داخل اسلایدر ظاهر میشود؛ با زدن آن، تصویر حذف و بازی با یک تصویر تصادفی ادامه مییابد.'
+      : 'For user-picked images, a translucent X icon appears at the top-right of the thumbnail in the slider; tap it to delete';
+  String get helpScoreTime => isFa ? 'امتیاز و زمان:' : 'Score and time:';
+  String get helpScoreTimeDesc => isFa
+      ? 'در پایان بازی و در صورت برنده شدن، تعداد حرکتها و زمان صرفشده نمایش داده میشود.'
+      : 'When you win, your number of moves and elapsed time are shown.';
+  String get helpTips => isFa ? 'نکات مفید:' : 'Tips:';
+  String get helpTipsBody => isFa
+      ? '• اگر تایل در جای درست خود باشد حاشیهٔ آن سبز میشود.\n• تنظیمات (تم/ابعاد/نمایش اعداد/زبان و تصاویر انتخابی) ذخیره میشوند.\n• بازی ذخیره میشود و میتوانید بعداً ادامه دهید.'
+      : '• Tiles in the correct position get a green border.\n• Your settings and chosen images are saved.\n• The game auto-saves so you can continue later.';
+
+  // Delete dialog
+  String get dlgDeleteTitle => isFa ? 'حذف عکس' : 'Delete image';
+  String get dlgDeleteConfirm => isFa
+      ? 'آیا از حذف این عکس مطمئن هستید؟'
+      : 'Are you sure you want to delete this image?';
+  String get dlgNo => isFa ? 'خیر' : 'No';
+  String get dlgYesDelete => isFa ? 'بله، حذف شود' : 'Yes, delete';
+
+  // Win overlay
+  String get winTitle => isFa ? 'شما برنده شدید! 🎉' : 'You won! 🎉';
+  String get winSubtitle => isFa ? 'برای ادامه کلیک کنید' : 'Tap to continue';
+  String get movesLabel => isFa ? 'حرکت' : 'Moves';
+  String get timeLabel => isFa ? 'زمان' : 'Time';
+}
+
 String _toFaDigits(dynamic input) {
   final persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
   return input.toString().replaceAllMapped(
@@ -213,6 +294,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   ];
   int _themeIdx = 0;
 
+  // Language
+  static const String _kPrefLanguage = 'settings.language';
+  AppLanguage _language = AppLanguage.fa;
+
   int? bestMoves;
   int? bestTime;
 
@@ -245,6 +330,19 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 500),
       reverseDuration: const Duration(milliseconds: 300),
     );
+  }
+
+  Strings get S => Strings(_language);
+
+  String _formatDigits(String s) {
+    return _language == AppLanguage.fa ? _toFaDigits(s) : s;
+  }
+
+  Future<void> _setLanguage(AppLanguage lang) async {
+    if (_language == lang) return;
+    setState(() => _language = lang);
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString(_kPrefLanguage, lang == AppLanguage.fa ? 'fa' : 'en');
   }
 
   @override
@@ -576,16 +674,16 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       context: dialogContext,
       useRootNavigator: true,
       builder: (ctx) => AlertDialog(
-        title: const Text('حذف عکس'),
-        content: const Text('آیا از حذف این عکس مطمئن هستید؟'),
+        title: Text(S.dlgDeleteTitle),
+        content: Text(S.dlgDeleteConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('خیر'),
+            child: Text(S.dlgNo),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('بله، حذف شود'),
+            child: Text(S.dlgYesDelete),
           ),
         ],
       ),
@@ -649,7 +747,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
             minChildSize: 0.32,
             maxChildSize: 0.95,
             builder: (context, sc) => Directionality(
-              textDirection: TextDirection.rtl,
+              textDirection: _language == AppLanguage.fa
+                  ? TextDirection.rtl
+                  : TextDirection.ltr,
               child: SingleChildScrollView(
                 controller: sc,
                 child: Padding(
@@ -670,8 +770,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 14),
                       Text(
-                        'نحوه بازی:',
-                        textAlign: TextAlign.right,
+                        S.helpHowTo,
+                        textAlign: _language == AppLanguage.fa
+                            ? TextAlign.right
+                            : TextAlign.left,
                         style: GoogleFonts.vazirmatn(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -679,15 +781,19 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'تصویر (انتخابی شما یاانتخاب شده توسط برنامه)به قطعاتی که شما تنظیم کرده‌اید(پیش فرض ۳ در ۳) به همراه یک خانه خالی تقسیم می‌شود. با زدن هر قطعهٔ مجاور خانهٔ خالی آن قطعه جایگزین خانهٔ خالی می‌شود. هدف این است که همهٔ قطعات را به جای درستشان برگردانید و تصویر اصلی را درست کنید. به صورت پیشفرض بازی با عکس تصادفی آغاز میشود ولی شما میتوانید از طریق اسلایدر عکسی را انتخاب و بازی جدیدی آغاز کنید.',
-                        textAlign: TextAlign.right,
+                        S.helpHowToBody,
+                        textAlign: _language == AppLanguage.fa
+                            ? TextAlign.right
+                            : TextAlign.left,
                         style: GoogleFonts.vazirmatn(),
                       ),
                       const SizedBox(height: 12),
 
                       Text(
-                        'دکمه‌ها و امکانات:',
-                        textAlign: TextAlign.right,
+                        S.helpFeatures,
+                        textAlign: _language == AppLanguage.fa
+                            ? TextAlign.right
+                            : TextAlign.left,
                         style: GoogleFonts.vazirmatn(
                           fontWeight: FontWeight.w700,
                         ),
@@ -697,60 +803,68 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                       _helpItemRow(
                         Icons.image_outlined,
                         const Color(0xFF34C3FF),
-                        'انتخاب تصویر',
-                        'از گالری عکسی انتخاب کنید تا بازی جدید با عکس انتخابی شما شروع شود. عکس انتخابی شما ذخیره میشود تا بعدا نیز استفاده شود. بهتر است تصویر شما حالت مربعی داشته باشد تا نمود بهتری در بازی داشته باشد.',
+                        S.helpPickImageTitle,
+                        S.helpPickImageDesc,
                       ),
                       _helpItemRow(
                         Icons.auto_fix_high,
                         const Color(0xFF9B6BFF),
-                        'تغییر نامرتب‌ها',
-                        'چند قطعهٔ نامرتب را جابه‌جا می‌کند تا چیدمان عوض شود.',
+                        S.helpShuffleTitle,
+                        S.helpShuffleDesc,
                       ),
                       _helpItemRow(
                         Icons.refresh,
                         const Color(0xFFFF5A5F),
-                        'شروع دوباره',
-                        'بازی را از ابتدا و با یک تصویر رندم شروع می‌کند.',
+                        S.helpResetTitle,
+                        S.helpResetDesc,
                       ),
                       _helpItemRow(
                         Icons.settings,
                         const Color(0xFF607D8B),
-                        'تنظیمات',
-                        'از طریق منوی تنظیمات می‌توانید، نمایش یا عدم نمایش شماره هر تایل، حالت روشن/تیره و ابعاد بازی را تغییر دهید.',
+                        S.helpSettingsTitle,
+                        S.helpSettingsDesc,
                       ),
                       _helpItemRow(
                         Icons.close_rounded,
                         const Color(0xFFEF5350),
-                        'حذف عکس',
-                        'برای تصاویر انتخابی خودتان، یک دکمه ضربدر در گوشهٔ بالا-راست بندانگشتی در اسلایدر ظاهر می‌شود؛ با زدن آن، تصویر حذف و بازی با یک تصویر تصادفی ادامه می‌یابد.',
+                        S.helpDeleteTitle,
+                        S.helpDeleteDesc,
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'امتیاز و زمان:',
-                        textAlign: TextAlign.right,
+                        S.helpScoreTime,
+                        textAlign: _language == AppLanguage.fa
+                            ? TextAlign.right
+                            : TextAlign.left,
                         style: GoogleFonts.vazirmatn(
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'در پایان بازی و در صورت برنده شدن، تعداد حرکت‌ها و زمان صرف‌شده نمایش داده می‌شود.',
-                        textAlign: TextAlign.right,
+                        S.helpScoreTimeDesc,
+                        textAlign: _language == AppLanguage.fa
+                            ? TextAlign.right
+                            : TextAlign.left,
                         style: GoogleFonts.vazirmatn(),
                       ),
                       const SizedBox(height: 12),
 
                       Text(
-                        'نکات مفید:',
-                        textAlign: TextAlign.right,
+                        S.helpTips,
+                        textAlign: _language == AppLanguage.fa
+                            ? TextAlign.right
+                            : TextAlign.left,
                         style: GoogleFonts.vazirmatn(
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '• در صورتیکه تایلی در جای مناسب و درست خود قرار گیرد دور آن سبز میشود.\n• تنظمیات انتخابی شما برای تم یا/ابعاد/تصاویر انتخابی شما ذخیره میشود تا دفعات بعدی هم استفاده شود.\n• بازی ذخیره می‌شود و می‌توانید بعداً از همان جایی که خارج شده‌اید ادامه دهید یا بازدن شروع دوباره بازی جدیدی را آغاز کنید.',
-                        textAlign: TextAlign.right,
+                        S.helpTipsBody,
+                        textAlign: _language == AppLanguage.fa
+                            ? TextAlign.right
+                            : TextAlign.left,
                         style: GoogleFonts.vazirmatn(),
                       ),
                       const SizedBox(height: 18),
@@ -758,7 +872,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                       FilledButton(
                         onPressed: () => Navigator.of(context).pop(),
                         child: Text(
-                          'بستن',
+                          S.close,
                           style: GoogleFonts.vazirmatn(
                             fontWeight: FontWeight.w700,
                           ),
@@ -776,6 +890,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   }
 
   Widget _helpItemRow(IconData icon, Color color, String title, String desc) {
+    TextAlign textDirection = _language == AppLanguage.fa
+        ? TextAlign.right
+        : TextAlign.left;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -797,11 +914,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
               children: [
                 Text(
                   title,
-                  textAlign: TextAlign.right,
+                  textAlign: textDirection,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
-                Text(desc, textAlign: TextAlign.right),
+                Text(desc, textAlign: textDirection),
               ],
             ),
           ),
@@ -850,7 +967,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
             minChildSize: 0.30,
             maxChildSize: 0.80,
             builder: (context, sc) => Directionality(
-              textDirection: TextDirection.rtl,
+              textDirection: _language == AppLanguage.fa
+                  ? TextDirection.rtl
+                  : TextDirection.ltr,
               child: SingleChildScrollView(
                 controller: sc,
                 child: Padding(
@@ -860,6 +979,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                       bool isDark = darkMode;
                       int dim = dimension;
                       bool showNums = _showTileNumbers;
+                      AppLanguage lang = _language;
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -876,8 +996,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           ),
                           const SizedBox(height: 14),
                           Text(
-                            'تنظیمات',
-                            textAlign: TextAlign.right,
+                            S.settingsTitle,
+                            textAlign: _language == AppLanguage.fa
+                                ? TextAlign.right
+                                : TextAlign.left,
                             style: GoogleFonts.vazirmatn(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
@@ -886,7 +1008,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           const SizedBox(height: 12),
                           SwitchListTile(
                             title: Text(
-                              'حالت تیره',
+                              S.settingsDark,
                               style: GoogleFonts.vazirmatn(),
                             ),
                             value: isDark,
@@ -900,7 +1022,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           const SizedBox(height: 6),
                           SwitchListTile(
                             title: Text(
-                              'نمایش شماره تایل‌ها',
+                              S.settingsShowNumbers,
                               style: GoogleFonts.vazirmatn(),
                             ),
                             value: showNums,
@@ -915,7 +1037,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           const Divider(),
                           const SizedBox(height: 6),
                           Text(
-                            'ابعاد پازل',
+                            S.settingsPuzzleSize,
                             style: GoogleFonts.vazirmatn(
                               fontWeight: FontWeight.w800,
                             ),
@@ -928,7 +1050,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                               for (final d in const [3, 4, 5])
                                 ChoiceChip(
                                   label: Text(
-                                    '🧩 ${_toFaDigits('$d در $d')}',
+                                    _language == AppLanguage.fa
+                                        ? '🧩 ${_toFaDigits('$d در $d')}'
+                                        : '🧩 ${d} x ${d}',
                                     style: GoogleFonts.vazirmatn(
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -941,11 +1065,52 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                                 ),
                             ],
                           ),
+                          const SizedBox(height: 12),
+                          const Divider(),
+                          const SizedBox(height: 6),
+                          Text(
+                            S.settingsLanguage,
+                            style: GoogleFonts.vazirmatn(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 10,
+                            children: [
+                              ChoiceChip(
+                                label: Text(
+                                  S.langFa,
+                                  style: GoogleFonts.vazirmatn(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                selected: lang == AppLanguage.fa,
+                                onSelected: (_) async {
+                                  setSheet(() => lang = AppLanguage.fa);
+                                  await _setLanguage(AppLanguage.fa);
+                                },
+                              ),
+                              ChoiceChip(
+                                label: Text(
+                                  S.langEn,
+                                  style: GoogleFonts.vazirmatn(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                selected: lang == AppLanguage.en,
+                                onSelected: (_) async {
+                                  setSheet(() => lang = AppLanguage.en);
+                                  await _setLanguage(AppLanguage.en);
+                                },
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 18),
                           FilledButton(
                             onPressed: () => Navigator.of(context).pop(),
                             child: Text(
-                              'بستن',
+                              S.close,
                               style: GoogleFonts.vazirmatn(
                                 fontWeight: FontWeight.w700,
                               ),
@@ -990,7 +1155,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     final s = sec % 60;
     final result =
         '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-    return _toFaDigits(result);
+    return _language == AppLanguage.fa ? _toFaDigits(result) : result;
   }
 
   Future<void> _loadFileImage(String filePath, {bool forResume = false}) async {
@@ -1029,6 +1194,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     final savedImage = sp.getString(_kPrefLastImage);
     final savedThemeIdx = sp.getInt(_kPrefThemeIdx);
     final savedShowNumbers = sp.getBool(_kPrefShowNumbers);
+    final savedLang = sp.getString(_kPrefLanguage);
 
     final savedGame = await _readSavedGame();
 
@@ -1039,6 +1205,10 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       _themeIdx = savedThemeIdx;
     }
     if (savedShowNumbers != null) _showTileNumbers = savedShowNumbers;
+    if (savedLang != null) {
+      if (savedLang == 'fa') _language = AppLanguage.fa;
+      if (savedLang == 'en') _language = AppLanguage.en;
+    }
 
     if (savedGame != null && !savedGame.solved) {
       dimension = savedGame.dim;
@@ -1212,6 +1382,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       scaffoldMessengerKey: _scaffoldKey,
       theme: theme,
       home: Directionality(
+        // Keep global layout RTL; only Help text switches direction dynamically.
         textDirection: TextDirection.rtl,
         child: Scaffold(
           extendBody: true,
@@ -1238,9 +1409,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                     child: IgnorePointer(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 6),
-                        child: Center(
-                          child: _RainbowTitle(text: 'پازل کشویی لواش'),
-                        ),
+                        child: Center(child: _RainbowTitle(text: S.appTitle)),
                       ),
                     ),
                   ),
@@ -1367,6 +1536,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                 right: 0,
                 bottom: 0,
                 child: _ActionBar(
+                  strings: S,
                   onPickImage: _pickImage,
                   onShuffleIncorrect: () =>
                       setState(() => board.partialShuffleIncorrect(rng)),
@@ -1400,10 +1570,14 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                     },
                     child: Center(
                       child: _WhiteWinBox(
-                        title: 'شما برنده شدید! 🎉',
-                        subtitle: 'برای ادامه کلیک کنید',
-                        movesText: _toFaDigits(moves),
+                        title: S.winTitle,
+                        subtitle: S.winSubtitle,
+                        movesText: _language == AppLanguage.fa
+                            ? _toFaDigits(moves)
+                            : moves.toString(),
                         timeText: _formatTime(seconds),
+                        movesLabel: S.movesLabel,
+                        timeLabel: S.timeLabel,
                         accent: Theme.of(context).colorScheme.primary,
                       ),
                     ),
@@ -1878,7 +2052,13 @@ class _PuzzleView extends StatelessWidget {
     final correctPos = tile.correctIndex;
     final correctRow = correctPos ~/ dimension;
     final correctCol = correctPos % dimension;
-    final numberText = showNumbers ? _toFaDigits(tile.correctIndex + 1) : null;
+    final state = context.findAncestorStateOfType<_MainAppState>();
+    final isFa = state?._language == AppLanguage.fa;
+    final numberText = showNumbers
+        ? (isFa
+              ? _toFaDigits(tile.correctIndex + 1)
+              : (tile.correctIndex + 1).toString())
+        : null;
 
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 200),
@@ -2262,6 +2442,7 @@ class _RainbowTitle extends StatelessWidget {
 }
 
 class _ActionBar extends StatelessWidget {
+  final Strings strings;
   final VoidCallback onPickImage;
   final VoidCallback onShuffleIncorrect;
   final VoidCallback onReset;
@@ -2270,6 +2451,7 @@ class _ActionBar extends StatelessWidget {
   final bool showDelete;
   final Future<void> Function()? onDelete;
   const _ActionBar({
+    required this.strings,
     required this.onPickImage,
     required this.onShuffleIncorrect,
     required this.onReset,
@@ -2322,32 +2504,32 @@ class _ActionBar extends StatelessWidget {
               children: [
                 _BarIconButton(
                   icon: Icons.image_outlined,
-                  label: 'عکس',
+                  label: strings.abPickImage,
                   onTap: onPickImage,
                   color: const ui.Color.fromARGB(255, 241, 15, 211),
                 ),
                 _BarIconButton(
                   icon: Icons.auto_fix_high,
-                  label: 'جابه‌جایی',
+                  label: strings.abShuffleIncorrect,
                   onTap: onShuffleIncorrect,
                   color: const Color(0xFF9B6BFF),
                 ),
                 _BarIconButton(
                   icon: Icons.refresh,
-                  label: 'دوباره',
+                  label: strings.abReset,
                   onTap: onReset,
                   color: const Color(0xFFFF5A5F),
                 ),
                 _BarIconButton(
                   icon: Icons.settings,
-                  label: 'تنظیمات',
+                  label: strings.abSettings,
                   onTap: onOpenSettings,
                   color: const Color(0xFF607D8B),
                 ),
                 if (onHelp != null)
                   _BarIconButton(
                     icon: Icons.help_outline,
-                    label: 'راهنما',
+                    label: strings.abHelp,
                     onTap: onHelp!,
                     color: const ui.Color.fromARGB(255, 58, 161, 115),
                   ),
@@ -2469,12 +2651,16 @@ class _WhiteWinBox extends StatelessWidget {
   final String movesText;
   final String timeText;
   final Color accent;
+  final String movesLabel;
+  final String timeLabel;
   const _WhiteWinBox({
     required this.title,
     required this.subtitle,
     required this.movesText,
     required this.timeText,
     required this.accent,
+    required this.movesLabel,
+    required this.timeLabel,
   });
 
   @override
@@ -2587,7 +2773,10 @@ class _WhiteWinBox extends StatelessWidget {
                   to: const Color(0xFFFF8FE3),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: [const Text('🔢 '), Text('حرکت: $movesText')],
+                    children: [
+                      const Text('🔢 '),
+                      Text('$movesLabel: $movesText'),
+                    ],
                   ),
                 ),
                 chip(
@@ -2595,7 +2784,10 @@ class _WhiteWinBox extends StatelessWidget {
                   to: const Color(0xFF72F1B8),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: [const Text('⏱️ '), Text('زمان: $timeText')],
+                    children: [
+                      const Text('⏱️ '),
+                      Text('$timeLabel: $timeText'),
+                    ],
                   ),
                 ),
               ],
