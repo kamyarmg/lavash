@@ -192,7 +192,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   int seconds = 0;
   int moves = 0;
 
-  bool darkMode = false;
+  bool darkMode = true;
   bool _showTileNumbers = false;
 
   bool _justSolved = false;
