@@ -40,7 +40,7 @@ class Strings {
       isFa ? 'دکمهها و امکانات:' : 'Buttons and features:';
   String get helpPickImageTitle => isFa ? 'تصویر' : 'image';
   String get helpPickImageDesc => isFa
-      ? 'از گالری خودتام عکسی انتخاب کنید تا بازی جدید با عکس انتخابی شما شروع شود. عکس انتخابی شما ذخیره میشود تا بعدا نیز استفاده شود.'
+      ? 'از گالری خودتان عکسی انتخاب کنید تا بازی جدید با عکس انتخابی شما شروع شود. عکس انتخابی شما ذخیره میشود تا بعدا نیز استفاده شود.'
       : 'Choose a photo from your gallery to start a new game. Your chosen photo is saved for later use.';
   String get helpShuffleTitle => isFa ? 'جابه جایی' : 'Shuffle';
   String get helpShuffleDesc => isFa
@@ -56,7 +56,7 @@ class Strings {
       : 'Use settings to toggle tile numbers, light/dark mode, puzzle size, and language.';
   String get helpDeleteTitle => isFa ? 'حذف عکس' : 'Delete image';
   String get helpDeleteDesc => isFa
-      ? 'برای تصاویر انتخابی شما، یک آیکن ضربدر (X) شفاف در گوشهٔ بالاراست بندانگشتی داخل اسلایدر ظاهر میشود؛ با زدن آن، تصویر حذف و بازی با یک تصویر تصادفی ادامه مییابد.'
+      ? 'برای تصاویر انتخابی شما، یک آیکون ضربدر (X) شفاف در گوشهٔ بالاراست بندانگشتی داخل اسلایدر ظاهر میشود؛ با زدن آن، تصویر حذف و بازی با یک تصویر تصادفی ادامه مییابد.'
       : 'For user-picked images, a translucent X icon appears at the top-right of the thumbnail in the slider; tap it to delete';
   String get helpScoreTime => isFa ? 'امتیاز و زمان:' : 'Score and time:';
   String get helpScoreTimeDesc => isFa
