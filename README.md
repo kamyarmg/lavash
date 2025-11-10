@@ -53,8 +53,6 @@ flutter pub get
 flutter run -d chrome         # Web
 # or
 flutter run -d android        # Android (emulator/connected device)
-# or
-flutter run -d linux          # Desktop (if enabled)
 ```
 
 Key files:
