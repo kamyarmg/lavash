@@ -1284,7 +1284,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Slider now spans full available width (like bottom action bar)
                               SizedBox(
                                 width: double.infinity,
                                 child: _AssetSlider(
@@ -1434,7 +1433,6 @@ class _AssetSliderState extends State<_AssetSlider> {
   static const _thumbWidth = 96.0;
   static const _thumbSelectedWidth = 176.0;
   static const _thumbMarginH = 6.0;
-  // فاصلهٔ کناری برای اینکه آیتم اول و آخر هنگام انتخاب کاملاً نچسبند به لبه‌ها
   static const _edgePadding = 20.0;
 
   List<String> get _allItems {
@@ -1471,12 +1469,10 @@ class _AssetSliderState extends State<_AssetSlider> {
 
     double offsetBefore = 0;
     for (int i = 0; i < index; i++) {
-      // آیتم‌های قبلِ انتخاب‌شده، عرض کوچک دارند
       offsetBefore += _thumbWidth + (_thumbMarginH * 2);
     }
-    final selItemWidth =
-        _thumbSelectedWidth; // آیتم انتخاب‌شده عرض بزرگ‌تر دارد
-    // مرکز آیتم انتخابی با درنظر گرفتن فاصلهٔ کناری چپ
+    final selItemWidth = _thumbSelectedWidth;
+
     final selCenter = _edgePadding + offsetBefore + selItemWidth / 2;
     final viewport = _controller.position.viewportDimension;
     final targetCenterOffset = selCenter - viewport / 2;
@@ -1660,14 +1656,7 @@ class _SquareAwareThumb extends StatelessWidget {
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          if (isSelected)
-            BoxShadow(
-              color: const Color(0xFFFF6EC7).withValues(alpha: 0.55),
-              blurRadius: 22,
-              offset: const Offset(0, 8),
-            ),
-        ],
+        boxShadow: const [],
       ),
       child: Stack(
         children: [
