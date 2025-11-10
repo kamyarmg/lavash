@@ -2,118 +2,117 @@
 	<img src="assets/images/lavash_logo.svg" alt="Lavash Logo" width="160" />
 </p>
 
-<h1 align="center">بازی لواش — پازل کشویی تصویری</h1>
+<p align="center">
+	<strong>English</strong> | <a href="README.fa.md">فارسی</a>
+</p>
 
-لواش یک بازی پازل کشویی مینیمال و چشم‌نواز است که تصویر انتخابی شما را به چندین قطعه مربعی تقسیم می‌کند؛ با جابه‌جایی هوشمندانهٔ قطعات و استفاده از خانهٔ خالی، تلاش کنید تصویر اصلی را دوباره بسازید. از عکس‌های آماده استفاده کنید یا عکس خودتان را از گالری وارد کنید و رکورد بزنید!
+<h1 align="center">Lavash — Sliding Puzzle Game</h1>
 
-
-## امکانات ✨
-
-- انتخاب تصویر از میان تصاویر آماده یا گالری دستگاه
-- پشتیبانی از ابعاد مختلف پازل: ۳×۳ تا ۸×۸
-- حالت تیره/روشن و تم‌های رنگی مبتنی بر Material 3
-- نمایش/عدم نمایش شمارهٔ تایل‌ها برای کمک بصری
-- ذخیرهٔ خودکار بازی و ادامه از آخرین وضعیت
-- ثبت بهترین رکوردها (کمترین حرکت و سریع‌ترین زمان) برای هر بُعد
-- پشتیبانی از زبان فارسی و انگلیسی
-- انیمیشن‌ها و طراحی مدرن با فونت فارسی «وزیرمتن»
+Lavash is a clean, modern sliding puzzle. It slices an image into a grid with a single empty space. Swap tiles by moving them into the empty cell and reconstruct the original image. Use the built-in gallery or pick your own photo and set new records!
 
 
-## نحوهٔ بازی 🧩
+## Features ✨
 
-1) یک تصویر انتخاب کنید: از اسلایدر بالای صفحه، یکی از تصاویر آماده را برگزینید یا با دکمهٔ «تصویر» عکس دلخواهتان را از گالری انتخاب کنید.
-2) پازل شروع می‌شود: تصویر به قطعات مربعی به‌همراه یک خانهٔ خالی تقسیم می‌شود.
-3) حرکت دهید: روی هر قطعهٔ مجاورِ خانهٔ خالی بزنید تا به جای خالی جابه‌جا شود.
-4) هدف: همهٔ قطعات را طوری بچینید که تصویر اصلی شکل بگیرد. وقتی برنده شوید، تعداد حرکت‌ها و زمان شما نمایش داده می‌شود.
+- Choose images from the built-in gallery or your device
+- Multiple puzzle sizes: 3×3 up to 8×8
+- Light/Dark mode with Material 3 color theming
+- Toggle tile numbers for visual aid
+- Auto-save and resume your game anytime
+- Best records per size (fewest moves, fastest time)
+- Bilingual UI (Persian and English)
+- Modern UI with the Persian font "Vazirmatn"
 
-نکته‌ها:
-- قطعاتی که در جای درست خود قرار گرفته‌اند با حاشیهٔ سبز مشخص می‌شوند.
-- از «جابه‌جایی» استفاده کنید تا چند قطعهٔ نامرتب با هم جابه‌جا شوند و چیدمان تغییر کند.
-- از «تنظیمات» می‌توانید ابعاد پازل، نمایش اعداد تایل‌ها، تم روشن/تیره و زبان را تغییر دهید.
+
+## How to Play 🧩
+
+1) Pick an image: use the top slider to pick from built-in images or choose a photo from your gallery.
+2) The puzzle starts: the image is split into tiles with one empty cell.
+3) Move tiles: tap any tile adjacent to the empty cell to slide it into the empty spot.
+4) Goal: restore the original image. Upon winning, your moves and time are displayed.
+
+Tips:
+- Tiles in the correct position get a green border.
+- Use "Shuffle" to swap a few incorrect tiles and change the layout.
+- In "Settings" you can change puzzle size, toggle tile numbers, switch theme, and choose language.
 
 
-## اجرای پروژه 🚀
+## Run the Project 🚀
 
-نیازمندی‌ها:
-- Flutter 3.24+ و Dart 3.9+
-- SDKهای پلتفرم مقصد (Android/iOS/Web/Desktop)
+Requirements:
+- Flutter 3.24+ and Dart 3.9+
+- Target platform SDKs (Android/iOS/Web/Desktop)
 
-گام‌ها:
-1) دریافت پکیج‌ها
-2) اجرای برنامه روی پلتفرم دلخواه
+Steps:
+1) Fetch packages
+2) Run on your desired platform
 
-دستورات پیشنهادی:
+Suggested commands:
 
 ```sh
 flutter pub get
-flutter run -d chrome         # اجرای وب
-# یا
-flutter run -d android        # اجرای اندروید (شبیه‌ساز/دستگاه متصل)
-# یا
-flutter run -d linux          # اجرای دسکتاپ (در صورت فعال بودن)
+flutter run -d chrome         # Web
+# or
+flutter run -d android        # Android (emulator/connected device)
+# or
+flutter run -d linux          # Desktop (if enabled)
 ```
 
-آدرس فایل‌های کلیدی:
-- نقطهٔ ورود برنامه: `lib/main.dart`
-- صفحه/منطق اصلی بازی: `lib/screens/home_screen.dart`
-- مدل و منطق پازل (صفحه‌بندی، حرکت، حل‌بودن، درهم‌ریزی معتبر): `lib/models/puzzle.dart`
-- متن‌ها و چندزبانه: `lib/core/strings.dart`
-- ابزارهای تصویر و تبدیل: `lib/core/image_utils.dart`, `lib/core/utils.dart`
-- ویجت‌های UI پازل و اکشن‌بار: `lib/widgets/puzzle_widgets.dart`
+Key files:
+- App entry point: `lib/main.dart`
+- Main screen and game logic: `lib/screens/home_screen.dart`
+- Puzzle model and logic (grid, moves, solved-check, valid shuffling): `lib/models/puzzle.dart`
+- Localized strings: `lib/core/strings.dart`
+- Image utilities: `lib/core/image_utils.dart`, `lib/core/utils.dart`
+- UI widgets (puzzle board, action bar, etc.): `lib/widgets/puzzle_widgets.dart`
 
 
-## ساختار و معماری کد 🏗️
+## Code Structure & Architecture 🏗️
 
-- مدل داده: `PuzzleBoard` و `Tile`، با بررسی حل‌بودن، همسایه‌های قابل‌حرکت و جابه‌جایی ایمن.
-- درهم‌ریزی معتبر: الگوریتم شافل با کنترل «حل‌پذیری» (Inversion Count) برای اطمینان از امکان حل.
-- مدیریت حالت: `StatefulWidget` سطح بالا با ذخیره‌سازی در `SharedPreferences` (تنظیمات، رکوردها، آخرین وضعیت بازی).
-- برش تصویر: تولید قطعات تصویری با Canvas و `ui.Image` برای رندر باکیفیت در هر اندازه.
-- تجربهٔ کاربری: طراحی راست‌به‌چپ، فونت «وزیرمتن»، Material 3، حالت تیره/روشن، و انیمیشن برد.
+- Data model: `PuzzleBoard` and `Tile`, with solved check, movable neighbors, and safe swapping.
+- Valid shuffling: uses inversion-count logic to ensure the puzzle is solvable.
+- State management: a top-level `StatefulWidget` plus `SharedPreferences` for settings, records, and last game state.
+- Image slicing: generates tile images via Canvas and `ui.Image` for crisp rendering at any size.
+- UX: RTL-friendly layout, Vazirmatn font, Material 3 theming, light/dark mode, and a win overlay animation.
 
 
-## تکنولوژی‌ها و وابستگی‌ها 🛠️
+## Tech & Dependencies 🛠️
 
 - Flutter (Material 3)
-- google_fonts — فونت «Vazirmatn»
-- image_picker — انتخاب تصویر از گالری/دوربین
-- shared_preferences — ذخیرهٔ تنظیمات، رکوردها و وضعیت بازی
-- path_provider و path — مسیرها و فایل‌های محلی (ذخیرهٔ تصاویر کاربر)
+- google_fonts — "Vazirmatn" font
+- image_picker — choose photos from gallery/camera
+- shared_preferences — persist settings, records, and game state
+- path_provider & path — local file paths (store user images)
 
-برای دیدن فهرست کامل، فایل `pubspec.yaml` را ببینید.
+See `pubspec.yaml` for the full list.
 
 
-## تست‌ها ✅
+## Tests ✅
 
-برای اجرای تست‌ها:
+Run tests with:
 
 ```sh
 flutter test
 ```
 
-نمونه تست‌ها در پوشهٔ `test/` قرار دارند؛ شامل منطق پازل، ابزارهای تصویر و رشته‌ها.
+Sample tests live in `test/` and cover puzzle logic, image utilities, and strings.
 
 
-## مشارکت 🤝
+## Contributing 🤝
 
-مشارکت شما استقبال می‌شود! برای افزودن قابلیت‌ها یا بهبودها:
+Contributions are welcome!
 
-1) یک Issue ایجاد کنید و تغییر مدنظرتان را شرح دهید.
-2) یک Fork بگیرید و شاخهٔ جدید بسازید: `feature/my-awesome-idea`
-3) تغییرات را همراه با توضیحات و اسکرین‌شات/گیف (در صورت نیاز) در Pull Request ارسال کنید.
-4) قواعد کدنویسی و lints را رعایت کنید و تست‌ها را تا حد امکان بنویسید/بروزرسانی کنید.
-
-
-## مجوز 📄
-
-این پروژه تحت مجوز MIT منتشر شده است. برای جزئیات، فایل `LICENSE` (در صورت وجود) را مشاهده کنید؛ در غیر این صورت، ارسال‌کنندهٔ PR می‌تواند پیشنهاد مجوز بدهد.
+1) Open an issue describing your proposal.
+2) Fork and create a feature branch: `feature/my-awesome-idea`
+3) Submit a PR with a clear description and screenshots/GIFs where helpful.
+4) Follow linting rules and add/update tests where possible.
 
 
-## قدردانی از فونت
+## License 📄
 
-این برنامه از فونت [«وزیرمتن»](https://fonts.google.com/specimen/Vazirmatn) استفاده می‌کند که توسط زنده‌یاد [«صابر راستی‌کردار»](https://fa.wikipedia.org/wiki/%D8%B5%D8%A7%D8%A8%D8%B1_%D8%B1%D8%A7%D8%B3%D8%AA%DB%8C%E2%80%8C%DA%A9%D8%B1%D8%AF%D8%A7%D8%B1‌) ساخته شده است. ضمن قدردانی صمیمانه از تلاش‌ها و آثار ارزشمند ایشان، برای آن مرحوم رحمت و غفران الهی مسئلت داریم.
+This project is released under the MIT License. See `LICENSE` for details. The Persian translation in `LICENSE` is for convenience; the English text is legally binding.
 
 
----
+## Font Acknowledgment
 
-اگر این پروژه را دوست داشتید، با دادن ⭐️ در گیت‌هاب از آن حمایت کنید و نظراتتان را با ما در میان بگذارید.
+This app uses the [Vazirmatn](https://fonts.google.com/specimen/Vazirmatn) font, created by the late [Saber Rastikerdar](https://fa.wikipedia.org/wiki/%D8%B5%D8%A7%D8%A8%D8%B1_%D8%B1%D8%A7%D8%B3%D8%AA%DB%8C%E2%80%8C%DA%A9%D8%B1%D8%AF%D8%A7%D8%B1%E2%80%8C). We deeply appreciate his invaluable work and legacy.
 
