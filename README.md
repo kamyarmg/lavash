@@ -66,11 +66,57 @@ Key files:
 
 ## Code Structure & Architecture 🏗️
 
-- Data model: `PuzzleBoard` and `Tile`, with solved check, movable neighbors, and safe swapping.
-- Valid shuffling: uses inversion-count logic to ensure the puzzle is solvable.
-- State management: a top-level `StatefulWidget` plus `SharedPreferences` for settings, records, and last game state.
-- Image slicing: generates tile images via Canvas and `ui.Image` for crisp rendering at any size.
-- UX: RTL-friendly layout, Vazirmatn font, Material 3 theming, light/dark mode, and a win overlay animation.
+### Overview
+Lavash follows a simple layered approach: **Model (pure logic) → State/Controller (screen) → Presentation (widgets)** with some utility helpers. There is no heavy state-management framework; Flutter `State` plus light persistence is enough for this scope.
+
+### Modules
+| Area                | Files                                              | Responsibility                                                                                        |
+| ------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Model               | `lib/models/puzzle.dart`                           | Sliding puzzle logic: tile positions, moves, solvable shuffle, partial shuffle.                       |
+| Core utils          | `lib/core/image_utils.dart`, `lib/core/utils.dart` | Decode images and Persian digit formatting.                                                           |
+| Localization        | `lib/core/strings.dart`                            | Lightweight bilingual string getters (fa/en).                                                         |
+| Screen / Controller | `lib/screens/home_screen.dart`                     | Orchestrates puzzle board, image selection, slicing, timer, persistence, settings overlay, win state. |
+| UI Components       | `lib/widgets/puzzle_widgets.dart`                  | Background, slider, puzzle tiles, action bar, overlays, bottom sheets.                                |
+
+### Data Flow
+1. User selects or randomly loads an image.
+2. Image decoded → sliced into tile images (`_buildSlices`).
+3. PuzzleBoard holds logical positions; UI reads `board.tiles` to position widgets.
+4. On tile tap: `board.move()` updates indices; state increments moves, checks solved.
+5. Timer ticks each second until solved; both time and moves persisted periodically.
+
+### Persistence
+`SharedPreferences` stores:
+- Settings (theme, language, dimension, show numbers)
+- Last selected image reference (FILE:// / B64:// / asset path)
+- Last game snapshot (dimension, tile indices CSV, moves, seconds, solved flag)
+- Best records per dimension (fewest moves / fastest time)
+
+### Solvable Shuffle Logic
+Shuffling ensures the permutation is solvable by counting inversions (classic 15-puzzle rule):
+- Odd dimension: even inversions.
+- Even dimension: parity depends on empty row from bottom. This prevents unwinnable boards.
+
+### Image Handling
+Images are decoded into `ui.Image` (fast GPU paint). Tiles are drawn either by pre-sliced images or by a painter clipping the original for flexibility. Pre-slicing improves rebuild speed after moves.
+
+### UI/UX Notes
+- Material 3 dynamic color with seed palette and dark/light toggling.
+- RTL direction when Persian language active.
+- Animated scale/tap feedback on tiles and thumbnails.
+- Win overlay shows records and encourages replay.
+- Action bar uses blurred translucent glass style for modern feel.
+
+### Performance Considerations
+- Slicing done once per image/dimension change; tiles reuse `ui.Image` slices.
+- Avoids rebuilding heavy image decode on each move; only lightweight position animations.
+- Uses `AnimatedPositioned` + small `AnimatedContainer` transitions (cheap on GPU).
+
+### Possible Future Enhancements
+- Add sound effects for moves / win.
+- Cloud sync of records.
+- Additional shuffle modes (e.g., scramble by random legal moves count).
+- Accessibility: larger tap targets and high-contrast theme.
 
 
 ## Tech & Dependencies 🛠️
