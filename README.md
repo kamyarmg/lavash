@@ -112,13 +112,6 @@ Images are decoded into `ui.Image` (fast GPU paint). Tiles are drawn either by p
 - Avoids rebuilding heavy image decode on each move; only lightweight position animations.
 - Uses `AnimatedPositioned` + small `AnimatedContainer` transitions (cheap on GPU).
 
-### Possible Future Enhancements
-- Add sound effects for moves / win.
-- Cloud sync of records.
-- Additional shuffle modes (e.g., scramble by random legal moves count).
-- Accessibility: larger tap targets and high-contrast theme.
-
-
 ## Tech & Dependencies 🛠️
 
 - Flutter (Material 3)
@@ -157,6 +150,17 @@ This project is released under the MIT License. See `LICENSE` for details. The P
 
 
 ## Font Acknowledgment
+## Project Meta 📂
+
+Additional repository docs:
+- `CONTRIBUTING.md` – setup, branching, PR process.
+- `CODE_OF_CONDUCT.md` – community behavior standards.
+- `SECURITY.md` – how to report vulnerabilities.
+- `CHANGELOG.md` – version history (Keep a Changelog format).
+- `docs/BRANDING.md` – logo usage, colors, icon generation.
+
+Automated checks run via GitHub Actions (`.github/workflows/flutter_ci.yml`).
+
 
 This app uses the [Vazirmatn](https://fonts.google.com/specimen/Vazirmatn) font, created by the late [Saber Rastikerdar](https://fa.wikipedia.org/wiki/%D8%B5%D8%A7%D8%A8%D8%B1_%D8%B1%D8%A7%D8%B3%D8%AA%DB%8C%E2%80%8C%DA%A9%D8%B1%D8%AF%D8%A7%D8%B1%E2%80%8C). We deeply appreciate his invaluable work and legacy.
 
