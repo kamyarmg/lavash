@@ -780,24 +780,30 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                 builder: (context, constraints) {
                   final availableHeight = constraints.maxHeight;
                   final availableWidth = constraints.maxWidth;
-                  final bottomBarSpace = 80.0;
-                  final sliderHeight = 200.0;
+                  final padding = MediaQuery.of(context).padding;
+                  final isWide = availableWidth >= 720;
+                  final titleBarSpace = padding.top + (isWide ? 58.0 : 50.0);
+                  final sliderHeight = (availableHeight * 0.22).clamp(
+                    140.0,
+                    240.0,
+                  );
+                  final bottomBarSpace = padding.bottom + 84.0;
                   final remainingHeight =
                       availableHeight - bottomBarSpace - sliderHeight;
                   final maxBoard = min(
-                    availableWidth * 0.9,
-                    remainingHeight * 0.7,
+                    availableWidth * 0.90,
+                    remainingHeight * 0.72,
                   ).clamp(240.0, 720.0);
                   final remainingVerticalSpace = remainingHeight - maxBoard;
-                  final verticalSpacing = (remainingVerticalSpace / 3).clamp(
-                    10.0,
-                    50.0,
+                  final verticalSpacing = (remainingVerticalSpace * 0.28).clamp(
+                    8.0,
+                    56.0,
                   );
                   return Center(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.fromLTRB(
                         availableWidth * 0.03,
-                        verticalSpacing,
+                        verticalSpacing + titleBarSpace,
                         availableWidth * 0.03,
                         bottomBarSpace,
                       ),
@@ -882,6 +888,12 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                     ),
                   );
                 },
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: TopTitleBar(title: S.appTitle),
               ),
               Positioned(
                 left: 0,
