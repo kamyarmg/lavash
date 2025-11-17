@@ -1323,9 +1323,11 @@ class SettingsBottomSheet extends StatefulWidget {
   final Strings strings;
   final bool darkMode;
   final bool showNumbers;
+  final bool soundEnabled;
   final int dimension;
   final ValueChanged<bool> onThemeChanged;
   final ValueChanged<bool> onNumbersChanged;
+  final ValueChanged<bool> onSoundChanged;
   final ValueChanged<AppLanguage> onLanguageChanged;
   final ValueChanged<int> onDimensionChanged;
   const SettingsBottomSheet({
@@ -1334,9 +1336,11 @@ class SettingsBottomSheet extends StatefulWidget {
     required this.strings,
     required this.darkMode,
     required this.showNumbers,
+    required this.soundEnabled,
     required this.dimension,
     required this.onThemeChanged,
     required this.onNumbersChanged,
+    required this.onSoundChanged,
     required this.onLanguageChanged,
     required this.onDimensionChanged,
   });
@@ -1347,6 +1351,7 @@ class SettingsBottomSheet extends StatefulWidget {
 class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
   late bool isDark;
   late bool showNums;
+  late bool soundOn;
   late int dim;
   late AppLanguage lang;
   @override
@@ -1354,6 +1359,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
     super.initState();
     isDark = widget.darkMode;
     showNums = widget.showNumbers;
+    soundOn = widget.soundEnabled;
     dim = widget.dimension;
     lang = widget.language;
   }
@@ -1428,6 +1434,20 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                       widget.onNumbersChanged(v);
                     },
                     secondary: const Icon(Icons.pin),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                  const SizedBox(height: 6),
+                  SwitchListTile(
+                    title: Text(
+                      widget.strings.settingsClickSound,
+                      style: GoogleFonts.vazirmatn(),
+                    ),
+                    value: soundOn,
+                    onChanged: (v) {
+                      setState(() => soundOn = v);
+                      widget.onSoundChanged(v);
+                    },
+                    secondary: const Icon(Icons.volume_up_outlined),
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
                   const SizedBox(height: 6),

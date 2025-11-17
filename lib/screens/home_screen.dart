@@ -62,6 +62,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   int moves = 0;
   bool darkMode = true;
   bool _showTileNumbers = false;
+  bool _soundEnabled = true;
   bool _showWinOverlay = false;
   late AnimationController _winBanner;
   static const String _kPrefThemeIdx = 'settings.themeIndex';
@@ -85,6 +86,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   static const String _kPrefLastImage = 'settings.lastImage';
   static const String _kPrefUserImages = 'settings.userImages';
   static const String _kPrefShowNumbers = 'settings.showNumbers';
+  static const String _kPrefClickSound = 'settings.clickSound';
   static const String _kGameDim = 'game.dimension';
   static const String _kGameTiles = 'game.tiles';
   static const String _kGameMoves = 'game.moves';
@@ -168,6 +170,13 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     setState(() => _showTileNumbers = value);
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_kPrefShowNumbers, _showTileNumbers);
+  }
+
+  Future<void> _setClickSound(bool value) async {
+    if (_soundEnabled == value) return;
+    setState(() => _soundEnabled = value);
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_kPrefClickSound, _soundEnabled);
   }
 
   Future<void> _loadAssetImagesList() async {
@@ -514,9 +523,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         strings: S,
         darkMode: darkMode,
         showNumbers: _showTileNumbers,
+        soundEnabled: _soundEnabled,
         dimension: dimension,
         onThemeChanged: _setDark,
         onNumbersChanged: _setShowNumbers,
+        onSoundChanged: _setClickSound,
         onLanguageChanged: _setLanguage,
         onDimensionChanged: _changeDimension,
       ),
@@ -527,6 +538,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     if (board.isSolved) return;
     final moved = board.move(tileArrayIndex);
     if (moved) {
+      if (_soundEnabled) {
+        SystemSound.play(SystemSoundType.click);
+      }
       moves++;
       setState(() {});
       _saveGameState();
@@ -663,6 +677,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     final savedImage = sp.getString(_kPrefLastImage);
     final savedThemeIdx = sp.getInt(_kPrefThemeIdx);
     final savedShowNumbers = sp.getBool(_kPrefShowNumbers);
+    final savedClickSound = sp.getBool(_kPrefClickSound);
     final savedLang = sp.getString(_kPrefLanguage);
     final savedGame = await _readSavedGame();
     if (savedDark != null) darkMode = savedDark;
@@ -672,6 +687,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       _themeIdx = savedThemeIdx;
     }
     if (savedShowNumbers != null) _showTileNumbers = savedShowNumbers;
+    if (savedClickSound != null) {
+      _soundEnabled = savedClickSound;
+    } else {
+      _soundEnabled = true; // default on
+    }
     if (savedLang != null) {
       if (savedLang == 'fa') _language = AppLanguage.fa;
       if (savedLang == 'en') _language = AppLanguage.en;

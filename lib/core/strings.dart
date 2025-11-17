@@ -28,6 +28,8 @@ class Strings {
       isFa ? 'نمایش شماره تایل‌ها' : 'Show tile numbers';
   String get settingsPuzzleSize => isFa ? 'ابعاد پازل' : 'Puzzle size';
   String get settingsLanguage => isFa ? 'زبان' : 'Language';
+  String get settingsClickSound =>
+      isFa ? 'پخش صدای کلیک تایل‌ها' : 'Tile click sound';
   String get langFa => 'فارسی';
   String get langEn => 'English';
 
