@@ -40,7 +40,7 @@ Tips:
 
 Requirements:
 - Flutter 3.24+ and Dart 3.9+
-- Target platform SDKs (Android/iOS/Web/Desktop)
+- Target platform SDKs (Android/iOS/Web)
 
 Steps:
 1) Fetch packages

@@ -40,7 +40,7 @@
 
 نیازمندی‌ها:
 - Flutter 3.24+ و Dart 3.9+
-- SDKهای پلتفرم مقصد (Android/iOS/Web/Desktop)
+- SDKهای پلتفرم مقصد (Android/iOS/Web)
 
 گام‌ها:
 1) دریافت پکیج‌ها
@@ -53,8 +53,6 @@ flutter pub get
 flutter run -d chrome         # اجرای وب
 # یا
 flutter run -d android        # اجرای اندروید (شبیه‌ساز/دستگاه متصل)
-# یا
-flutter run -d linux          # اجرای دسکتاپ (در صورت فعال بودن)
 ```
 
 آدرس فایل‌های کلیدی:
