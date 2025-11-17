@@ -148,6 +148,9 @@ class AssetSlider extends StatefulWidget {
   final String? selectedId;
   final ValueChanged<String> onSelect;
   final Future<void> Function()? onDeleteSelected;
+
+  /// Optional fixed height for the slider; if null, derives from viewport.
+  final double? height;
   const AssetSlider({
     super.key,
     required this.assets,
@@ -155,6 +158,7 @@ class AssetSlider extends StatefulWidget {
     required this.onSelect,
     this.userImages = const [],
     this.onDeleteSelected,
+    this.height,
   });
   @override
   State<AssetSlider> createState() => _AssetSliderState();
@@ -165,6 +169,7 @@ class _AssetSliderState extends State<AssetSlider> {
   static const _edgePadding = 20.0;
   // Dynamic sizes derived from viewport height.
   double _sliderHeight(BuildContext context) {
+    if (widget.height != null) return widget.height!.clamp(80.0, 320.0);
     final h = MediaQuery.of(context).size.height;
     return h.clamp(480.0, 1000.0) == h
         ? (h * 0.22).clamp(140.0, 240.0)
