@@ -148,6 +148,9 @@ class AssetSlider extends StatefulWidget {
   final String? selectedId;
   final ValueChanged<String> onSelect;
   final Future<void> Function()? onDeleteSelected;
+
+  /// Optional fixed height for the slider; if null, derives from viewport.
+  final double? height;
   const AssetSlider({
     super.key,
     required this.assets,
@@ -155,6 +158,7 @@ class AssetSlider extends StatefulWidget {
     required this.onSelect,
     this.userImages = const [],
     this.onDeleteSelected,
+    this.height,
   });
   @override
   State<AssetSlider> createState() => _AssetSliderState();
@@ -162,10 +166,31 @@ class AssetSlider extends StatefulWidget {
 
 class _AssetSliderState extends State<AssetSlider> {
   final _controller = ScrollController();
-  static const _thumbWidth = 96.0;
-  static const _thumbSelectedWidth = 176.0;
-  static const _thumbMarginH = 6.0;
   static const _edgePadding = 20.0;
+  // Dynamic sizes derived from viewport height.
+  double _sliderHeight(BuildContext context) {
+    if (widget.height != null) return widget.height!.clamp(80.0, 320.0);
+    final h = MediaQuery.of(context).size.height;
+    return h.clamp(480.0, 1000.0) == h
+        ? (h * 0.22).clamp(140.0, 240.0)
+        : (h * 0.22).clamp(120.0, 260.0);
+  }
+
+  double _thumbWidth(BuildContext context) {
+    final h = _sliderHeight(context);
+    return (h * 0.48).clamp(84.0, 140.0);
+  }
+
+  double _thumbSelectedWidth(BuildContext context) {
+    final h = _sliderHeight(context);
+    return (h * 0.88).clamp(140.0, 240.0);
+  }
+
+  double _thumbMarginH(BuildContext context) {
+    final h = _sliderHeight(context);
+    return (h * 0.06).clamp(4.0, 12.0);
+  }
+
   List<String> get _allItems {
     final userIds = List<String>.generate(
       widget.userImages.length,
@@ -199,9 +224,10 @@ class _AssetSliderState extends State<AssetSlider> {
     if (index < 0) return;
     double offsetBefore = 0;
     for (int i = 0; i < index; i++) {
-      offsetBefore += _thumbWidth + (_thumbMarginH * 2);
+      offsetBefore += _thumbWidth(context) + (_thumbMarginH(context) * 2);
     }
-    final selCenter = _edgePadding + offsetBefore + _thumbSelectedWidth / 2;
+    final selCenter =
+        _edgePadding + offsetBefore + _thumbSelectedWidth(context) / 2;
     final viewport = _controller.position.viewportDimension;
     final targetCenterOffset = selCenter - viewport / 2;
     final maxScroll = _controller.position.maxScrollExtent;
@@ -217,23 +243,27 @@ class _AssetSliderState extends State<AssetSlider> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final items = _allItems;
+    final sliderH = _sliderHeight(context);
+    final thumbW = _thumbWidth(context);
+    final thumbSelW = _thumbSelectedWidth(context);
+    final thumbMH = _thumbMarginH(context);
     return SizedBox(
-      height: 200,
+      height: sliderH,
       child: ListView.builder(
         controller: _controller,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(
+        padding: EdgeInsets.only(
           left: _edgePadding,
           right: _edgePadding,
-          top: 3,
-          bottom: 3,
+          top: max(3, (sliderH * 0.015).toInt().toDouble()),
+          bottom: max(3, (sliderH * 0.015).toInt().toDouble()),
         ),
         itemCount: items.length,
         itemBuilder: (c, i) {
           final id = items[i];
           final isUser = id.startsWith('USER:');
           final isSel = id == widget.selectedId;
-          final baseWidth = isSel ? _thumbSelectedWidth : _thumbWidth;
+          final baseWidth = isSel ? thumbSelW : thumbW;
           return _SliderThumb(
             index: i,
             selected: isSel,
@@ -247,8 +277,8 @@ class _AssetSliderState extends State<AssetSlider> {
             onDeleteTap: (isSel && isUser) ? widget.onDeleteSelected : null,
             width: baseWidth,
             margin: EdgeInsets.symmetric(
-              horizontal: _thumbMarginH,
-              vertical: 10,
+              horizontal: thumbMH,
+              vertical: (sliderH * 0.05).clamp(6.0, 14.0),
             ),
           );
         },
@@ -1298,9 +1328,11 @@ class SettingsBottomSheet extends StatefulWidget {
   final Strings strings;
   final bool darkMode;
   final bool showNumbers;
+  final bool soundEnabled;
   final int dimension;
   final ValueChanged<bool> onThemeChanged;
   final ValueChanged<bool> onNumbersChanged;
+  final ValueChanged<bool> onSoundChanged;
   final ValueChanged<AppLanguage> onLanguageChanged;
   final ValueChanged<int> onDimensionChanged;
   const SettingsBottomSheet({
@@ -1309,9 +1341,11 @@ class SettingsBottomSheet extends StatefulWidget {
     required this.strings,
     required this.darkMode,
     required this.showNumbers,
+    required this.soundEnabled,
     required this.dimension,
     required this.onThemeChanged,
     required this.onNumbersChanged,
+    required this.onSoundChanged,
     required this.onLanguageChanged,
     required this.onDimensionChanged,
   });
@@ -1322,6 +1356,7 @@ class SettingsBottomSheet extends StatefulWidget {
 class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
   late bool isDark;
   late bool showNums;
+  late bool soundOn;
   late int dim;
   late AppLanguage lang;
   @override
@@ -1329,6 +1364,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
     super.initState();
     isDark = widget.darkMode;
     showNums = widget.showNumbers;
+    soundOn = widget.soundEnabled;
     dim = widget.dimension;
     lang = widget.language;
   }
@@ -1403,6 +1439,20 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                       widget.onNumbersChanged(v);
                     },
                     secondary: const Icon(Icons.pin),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                  const SizedBox(height: 6),
+                  SwitchListTile(
+                    title: Text(
+                      widget.strings.settingsClickSound,
+                      style: GoogleFonts.vazirmatn(),
+                    ),
+                    value: soundOn,
+                    onChanged: (v) {
+                      setState(() => soundOn = v);
+                      widget.onSoundChanged(v);
+                    },
+                    secondary: const Icon(Icons.volume_up_outlined),
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
                   const SizedBox(height: 6),
@@ -1488,6 +1538,86 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// Top title bar
+/// Pinned, safe-area-aware colorful title shown at the very top.
+class TopTitleBar extends StatelessWidget {
+  final String title;
+  const TopTitleBar({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final width = MediaQuery.of(context).size.width;
+    final double fontSize = width >= 720 ? 28 : 24;
+    final gradient = const LinearGradient(
+      colors: [
+        Color(0xFFFF6EC7),
+        Color(0xFFFFD36E),
+        Color(0xFF72F1B8),
+        Color(0xFF00E5FF),
+        Color(0xFF9B6BFF),
+      ],
+      begin: Alignment.centerRight,
+      end: Alignment.centerLeft,
+    );
+
+    return SafeArea(
+      top: true,
+      bottom: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              (isDark ? Colors.black : Colors.white).withValues(
+                alpha: isDark ? 0.10 : 0.60,
+              ),
+              Colors.transparent,
+            ],
+          ),
+        ),
+        child: Center(
+          child: GradientText(
+            title,
+            gradient: gradient,
+            style: GoogleFonts.vazirmatn(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Text with a multi-color gradient fill.
+class GradientText extends StatelessWidget {
+  final String text;
+  final TextStyle style;
+  final Gradient gradient;
+  const GradientText(
+    this.text, {
+    super.key,
+    required this.gradient,
+    required this.style,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      shaderCallback: (bounds) => gradient.createShader(
+        Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+      ),
+      blendMode: BlendMode.srcIn,
+      child: Text(text, style: style, textAlign: TextAlign.center),
     );
   }
 }

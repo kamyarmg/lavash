@@ -62,6 +62,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   int moves = 0;
   bool darkMode = true;
   bool _showTileNumbers = false;
+  bool _soundEnabled = true;
   bool _showWinOverlay = false;
   late AnimationController _winBanner;
   static const String _kPrefThemeIdx = 'settings.themeIndex';
@@ -85,6 +86,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
   static const String _kPrefLastImage = 'settings.lastImage';
   static const String _kPrefUserImages = 'settings.userImages';
   static const String _kPrefShowNumbers = 'settings.showNumbers';
+  static const String _kPrefClickSound = 'settings.clickSound';
   static const String _kGameDim = 'game.dimension';
   static const String _kGameTiles = 'game.tiles';
   static const String _kGameMoves = 'game.moves';
@@ -168,6 +170,13 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     setState(() => _showTileNumbers = value);
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_kPrefShowNumbers, _showTileNumbers);
+  }
+
+  Future<void> _setClickSound(bool value) async {
+    if (_soundEnabled == value) return;
+    setState(() => _soundEnabled = value);
+    final sp = await SharedPreferences.getInstance();
+    await sp.setBool(_kPrefClickSound, _soundEnabled);
   }
 
   Future<void> _loadAssetImagesList() async {
@@ -514,9 +523,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         strings: S,
         darkMode: darkMode,
         showNumbers: _showTileNumbers,
+        soundEnabled: _soundEnabled,
         dimension: dimension,
         onThemeChanged: _setDark,
         onNumbersChanged: _setShowNumbers,
+        onSoundChanged: _setClickSound,
         onLanguageChanged: _setLanguage,
         onDimensionChanged: _changeDimension,
       ),
@@ -527,6 +538,9 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     if (board.isSolved) return;
     final moved = board.move(tileArrayIndex);
     if (moved) {
+      if (_soundEnabled) {
+        SystemSound.play(SystemSoundType.click);
+      }
       moves++;
       setState(() {});
       _saveGameState();
@@ -663,6 +677,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     final savedImage = sp.getString(_kPrefLastImage);
     final savedThemeIdx = sp.getInt(_kPrefThemeIdx);
     final savedShowNumbers = sp.getBool(_kPrefShowNumbers);
+    final savedClickSound = sp.getBool(_kPrefClickSound);
     final savedLang = sp.getString(_kPrefLanguage);
     final savedGame = await _readSavedGame();
     if (savedDark != null) darkMode = savedDark;
@@ -672,6 +687,11 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
       _themeIdx = savedThemeIdx;
     }
     if (savedShowNumbers != null) _showTileNumbers = savedShowNumbers;
+    if (savedClickSound != null) {
+      _soundEnabled = savedClickSound;
+    } else {
+      _soundEnabled = true; // default on
+    }
     if (savedLang != null) {
       if (savedLang == 'fa') _language = AppLanguage.fa;
       if (savedLang == 'en') _language = AppLanguage.en;
@@ -780,108 +800,142 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
                 builder: (context, constraints) {
                   final availableHeight = constraints.maxHeight;
                   final availableWidth = constraints.maxWidth;
-                  final bottomBarSpace = 80.0;
-                  final sliderHeight = 200.0;
-                  final remainingHeight =
-                      availableHeight - bottomBarSpace - sliderHeight;
-                  final maxBoard = min(
-                    availableWidth * 0.9,
-                    remainingHeight * 0.7,
-                  ).clamp(240.0, 720.0);
-                  final remainingVerticalSpace = remainingHeight - maxBoard;
-                  final verticalSpacing = (remainingVerticalSpace / 3).clamp(
-                    10.0,
-                    50.0,
+                  final padding = MediaQuery.of(context).padding;
+                  final isWide = availableWidth >= 720;
+                  final estimatedTopBar = isWide ? 58.0 : 50.0;
+                  final estimatedBottomBar = 72.0;
+                  final topReserved = padding.top + estimatedTopBar;
+                  final bottomReserved = padding.bottom + estimatedBottomBar;
+
+                  final sidePadding = (availableWidth * 0.03).clamp(10.0, 24.0);
+                  final contentHeight = max(
+                    0.0,
+                    availableHeight - topReserved - bottomReserved,
                   );
-                  return Center(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                        availableWidth * 0.03,
-                        verticalSpacing,
-                        availableWidth * 0.03,
-                        bottomBarSpace,
-                      ),
-                      child: SafeArea(
-                        top: true,
-                        bottom: false,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 860),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: double.infinity,
-                                child: AssetSlider(
-                                  assets: _assetImages,
-                                  userImages: _userImages,
-                                  selectedId: _selectedId,
-                                  onSelect: (id) async {
-                                    if (id.startsWith('USER:')) {
-                                      final idx = int.tryParse(
-                                        id.split(':')[1],
-                                      );
-                                      if (idx != null &&
-                                          idx >= 0 &&
-                                          idx < _userImages.length) {
-                                        final data = _userImages[idx];
-                                        final img = await decodeUiImage(data);
-                                        if (!mounted) return;
-                                        setState(() {
-                                          image = img;
-                                          _selectedId = id;
-                                        });
-                                        final sp =
-                                            await SharedPreferences.getInstance();
-                                        if (idx < _userEntries.length) {
-                                          final originalEntry =
-                                              _userEntries[idx];
-                                          await sp.setString(
-                                            _kPrefLastImage,
-                                            originalEntry,
-                                          );
-                                        } else {
-                                          await sp.setString(
-                                            _kPrefLastImage,
-                                            'B64://${base64Encode(data)}',
-                                          );
-                                        }
-                                        _clearGameState();
-                                        _reset(shuffle: true);
-                                        _buildSlices();
+                  final innerMaxWidth = 860.0;
+                  final innerWidth = min(
+                    availableWidth - sidePadding * 2,
+                    innerMaxWidth,
+                  );
+
+                  // Allocate sizes to guarantee no scroll: slider + board <= contentHeight
+                  // Remaining space is distributed equally (top/middle/bottom) using Spacers.
+                  double sliderH = (contentHeight * 0.26).clamp(80.0, 220.0);
+                  final boardMaxByWidth = min(
+                    innerWidth,
+                    availableWidth * 0.90,
+                  );
+                  double availableForBoard = max(0.0, contentHeight - sliderH);
+                  double boardSide = min(availableForBoard, 720.0);
+                  boardSide = min(boardSide, boardMaxByWidth);
+                  const double minBoard = 200.0;
+
+                  if (boardSide < minBoard) {
+                    // Prefer shrinking the slider first to give the board more room.
+                    final targetSlider = max(56.0, contentHeight - minBoard);
+                    sliderH = targetSlider.clamp(56.0, 220.0);
+                    availableForBoard = max(0.0, contentHeight - sliderH);
+                    boardSide = min(
+                      min(availableForBoard, 720.0),
+                      boardMaxByWidth,
+                    );
+                    if (boardSide < minBoard) {
+                      // Fit whatever remains without overflow.
+                      boardSide = max(0.0, availableForBoard);
+                    }
+                  }
+
+                  return Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      sidePadding,
+                      topReserved,
+                      sidePadding,
+                      bottomReserved,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 860),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.max,
+                          children: [
+                            const Spacer(),
+                            SizedBox(
+                              width: double.infinity,
+                              height: sliderH,
+                              child: AssetSlider(
+                                height: sliderH,
+                                assets: _assetImages,
+                                userImages: _userImages,
+                                selectedId: _selectedId,
+                                onSelect: (id) async {
+                                  if (id.startsWith('USER:')) {
+                                    final idx = int.tryParse(id.split(':')[1]);
+                                    if (idx != null &&
+                                        idx >= 0 &&
+                                        idx < _userImages.length) {
+                                      final data = _userImages[idx];
+                                      final img = await decodeUiImage(data);
+                                      if (!mounted) return;
+                                      setState(() {
+                                        image = img;
+                                        _selectedId = id;
+                                      });
+                                      final sp =
+                                          await SharedPreferences.getInstance();
+                                      if (idx < _userEntries.length) {
+                                        final originalEntry = _userEntries[idx];
+                                        await sp.setString(
+                                          _kPrefLastImage,
+                                          originalEntry,
+                                        );
+                                      } else {
+                                        await sp.setString(
+                                          _kPrefLastImage,
+                                          'B64://${base64Encode(data)}',
+                                        );
                                       }
-                                    } else {
-                                      _loadAssetImage(id);
+                                      _clearGameState();
+                                      _reset(shuffle: true);
+                                      _buildSlices();
                                     }
-                                  },
-                                  onDeleteSelected:
-                                      _confirmAndDeleteSelectedUserImage,
+                                  } else {
+                                    _loadAssetImage(id);
+                                  }
+                                },
+                                onDeleteSelected:
+                                    _confirmAndDeleteSelectedUserImage,
+                              ),
+                            ),
+                            const Spacer(),
+                            Hero(
+                              tag: 'board',
+                              child: SizedBox(
+                                width: boardSide,
+                                height: boardSide,
+                                child: PuzzleView(
+                                  board: board,
+                                  dimension: dimension,
+                                  image: image,
+                                  onTileTap: _onTileTap,
+                                  slices: _slices,
+                                  showNumbers: _showTileNumbers,
+                                  language: _language,
                                 ),
                               ),
-                              SizedBox(height: verticalSpacing),
-                              Hero(
-                                tag: 'board',
-                                child: SizedBox(
-                                  width: maxBoard,
-                                  height: maxBoard,
-                                  child: PuzzleView(
-                                    board: board,
-                                    dimension: dimension,
-                                    image: image,
-                                    onTileTap: _onTileTap,
-                                    slices: _slices,
-                                    showNumbers: _showTileNumbers,
-                                    language: _language,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: verticalSpacing),
-                            ],
-                          ),
+                            ),
+                            const Spacer(),
+                          ],
                         ),
                       ),
                     ),
                   );
                 },
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: TopTitleBar(title: S.appTitle),
               ),
               Positioned(
                 left: 0,
