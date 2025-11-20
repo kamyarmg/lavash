@@ -59,6 +59,9 @@ android {
             // Sign with the release keystore when available
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
+            // Explicitly disable resource shrinking to avoid Gradle error
+            // until code shrinking (R8) is enabled.
+            isShrinkResources = false
             // Optionally enable shrinking for smaller APKs:
             // isMinifyEnabled = true
             // isShrinkResources = true
