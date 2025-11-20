@@ -49,7 +49,7 @@ jobs:
         run: flutter analyze
 
       - name: Provision Android signing (keystore + key.properties)
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && secrets.ANDROID_KEY_ALIAS != '' && secrets.ANDROID_KEY_PASSWORD != '' && secrets.ANDROID_KEYSTORE_PASSWORD != '' }}
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 && secrets.ANDROID_KEY_ALIAS && secrets.ANDROID_KEY_PASSWORD && secrets.ANDROID_KEYSTORE_PASSWORD }}
         shell: bash
         run: |
           mkdir -p android/app
