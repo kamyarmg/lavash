@@ -152,6 +152,16 @@ This project is released under the MIT License. See `LICENSE` for details. The P
 This app uses the [Vazirmatn](https://fonts.google.com/specimen/Vazirmatn) font, created by the late [Saber Rastikerdar](https://fa.wikipedia.org/wiki/%D8%B5%D8%A7%D8%A8%D8%B1_%D8%B1%D8%A7%D8%B3%D8%AA%DB%8C%E2%80%8C%DA%A9%D8%B1%D8%AF%D8%A7%D8%B1%E2%80%8C). We deeply appreciate his invaluable work and legacy.
 
 
+## Images & Credits
+In-app images come from amazing creators on Unsplash — thank you!
+
+- https://unsplash.com/@nci
+- https://unsplash.com/@salahdarwish
+- https://unsplash.com/@aaron_santelices
+
+Unsplash offers free-to-use photos and everyone can use them. See the Unsplash License: https://unsplash.com/license
+
+
 ## Project Meta 📂
 
 Additional repository docs:
