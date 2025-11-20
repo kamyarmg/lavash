@@ -18,7 +18,6 @@ Lavash is a clean, modern sliding puzzle. It slices an image into a grid with a 
 - Light/Dark mode with Material 3 color theming
 - Toggle tile numbers for visual aid
 - Auto-save and resume your game anytime
-- Best records per size (fewest moves, fastest time)
 - Bilingual UI (Persian and English)
 - Modern UI with the Persian font "Vazirmatn"
 
@@ -150,6 +149,9 @@ This project is released under the MIT License. See `LICENSE` for details. The P
 
 
 ## Font Acknowledgment
+This app uses the [Vazirmatn](https://fonts.google.com/specimen/Vazirmatn) font, created by the late [Saber Rastikerdar](https://fa.wikipedia.org/wiki/%D8%B5%D8%A7%D8%A8%D8%B1_%D8%B1%D8%A7%D8%B3%D8%AA%DB%8C%E2%80%8C%DA%A9%D8%B1%D8%AF%D8%A7%D8%B1%E2%80%8C). We deeply appreciate his invaluable work and legacy.
+
+
 ## Project Meta 📂
 
 Additional repository docs:
@@ -161,6 +163,4 @@ Additional repository docs:
 
 Automated checks run via GitHub Actions (`.github/workflows/flutter_ci.yml`).
 
-
-This app uses the [Vazirmatn](https://fonts.google.com/specimen/Vazirmatn) font, created by the late [Saber Rastikerdar](https://fa.wikipedia.org/wiki/%D8%B5%D8%A7%D8%A8%D8%B1_%D8%B1%D8%A7%D8%B3%D8%AA%DB%8C%E2%80%8C%DA%A9%D8%B1%D8%AF%D8%A7%D8%B1%E2%80%8C). We deeply appreciate his invaluable work and legacy.
 
