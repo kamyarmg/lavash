@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/image_utils.dart';
+import '../core/sound.dart';
 import '../core/strings.dart';
 import '../core/utils.dart';
 import '../models/puzzle.dart';
@@ -101,6 +102,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     super.initState();
     // Start with a solvable random board; image will be picked/loaded later.
     board = PuzzleBoard.solved(dimension).shuffled(rng);
+    // Prepare lightweight audio for tile clicks (no-op if unsupported).
     _loadSettings();
     _winBanner = AnimationController(
       vsync: this,
@@ -538,9 +540,7 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
     if (board.isSolved) return;
     final moved = board.move(tileArrayIndex);
     if (moved) {
-      if (_soundEnabled) {
-        SystemSound.play(SystemSoundType.click);
-      }
+      if (_soundEnabled) Sound.playClick();
       moves++;
       setState(() {});
       _saveGameState();
