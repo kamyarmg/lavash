@@ -207,7 +207,6 @@ class _MainAppState extends State<MainApp> with TickerProviderStateMixin {
         'assets/images/2.jpg',
         'assets/images/3.jpg',
         'assets/images/4.jpg',
-        'assets/images/5.jpg',
       ];
       _imagesLoaded = true;
     }
