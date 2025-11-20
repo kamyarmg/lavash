@@ -49,12 +49,16 @@ jobs:
         run: flutter analyze
 
       - name: Provision Android signing (keystore + key.properties)
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 && secrets.ANDROID_KEY_ALIAS && secrets.ANDROID_KEY_PASSWORD && secrets.ANDROID_KEYSTORE_PASSWORD }}
         shell: bash
         run: |
+          # Guard: if any secret is missing, skip signing setup
+          if [[ -z "${ANDROID_KEYSTORE_BASE64:-}" || -z "${ANDROID_KEY_ALIAS:-}" || -z "${ANDROID_KEY_PASSWORD:-}" || -z "${ANDROID_KEYSTORE_PASSWORD:-}" ]]; then
+            echo "Signing secrets missing; skipping signing setup.";
+            exit 0;
+          fi
           mkdir -p android/app
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
-          cat > android/key.properties <<'EOF'
+          cat > android/key.properties <<EOF
           storeFile=app/upload-keystore.jks
           storePassword=${ANDROID_KEYSTORE_PASSWORD}
           keyAlias=${ANDROID_KEY_ALIAS}
