@@ -16,7 +16,7 @@ class Strings {
   // Action bar labels
   String get abPickImage => isFa ? 'عکس' : 'Image';
   String get abShuffleIncorrect => isFa ? 'جابه‌جایی' : 'Shuffle';
-  String get abReset => isFa ? 'دوباره' : 'Reset';
+  String get abReset => isFa ? 'جدید' : 'New';
   String get abSettings => isFa ? 'تنظیمات' : 'Settings';
   String get abHelp => isFa ? 'راهنما' : 'Help';
   String get abDelete => isFa ? 'حذف' : 'Delete';
