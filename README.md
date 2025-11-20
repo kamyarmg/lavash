@@ -14,7 +14,7 @@ Lavash is a clean, modern sliding puzzle. It slices an image into a grid with a 
 ## Features ✨
 
 - Choose images from the built-in gallery or your device
-- Multiple puzzle sizes: 3×3 up to 8×8
+- Multiple puzzle sizes: 3×3 up to 5×5
 - Light/Dark mode with Material 3 color theming
 - Toggle tile numbers for visual aid
 - Auto-save and resume your game anytime
