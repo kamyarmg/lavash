@@ -1,0 +1,6 @@
+[
+  This file records submodule metadata. The submodule repo appears empty (no default branch). Once a branch is pushed, update 'branch' if desired.
+]
+[submodule "private"]
+    path = private
+    url = git@github.com:kamyarmg/lavash_private.git
